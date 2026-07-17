@@ -24,7 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var spinTimer: Timer?
     private var spinAngle: CGFloat = 0
 
-    private lazy var idleImage: NSImage? = symbolImage("film")
+    private lazy var idleImage: NSImage? = symbolImage("arrow.down.right.and.arrow.up.left")
     private lazy var spinnerBase: NSImage? = symbolImage("arrow.triangle.2.circlepath")
 
     func applicationDidFinishLaunching(_ notification: Notification) {

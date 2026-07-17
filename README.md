@@ -1,7 +1,13 @@
-# Sizer
+<p align="center">
+  <img src="assets/logo.svg" width="120" height="120" alt="Sizer">
+</p>
 
-macOS **메뉴바(트레이) 영상 변환 앱**. 드롭 폴더에 영상을 넣으면 자동으로 **고해상도 저용량**으로
-변환하고, **움직임 없는(정지) 구간을 잘라내며**, 완료 알림을 띄웁니다. 변환 엔진은 ffmpeg입니다.
+<h1 align="center">Sizer</h1>
+
+<p align="center">
+  macOS 메뉴바(트레이) 영상·이미지 변환 앱 — 드롭 폴더에 넣으면 <b>고화질 저용량</b>으로
+  변환하고, <b>움직임 없는(정지) 구간</b>을 잘라냅니다. 변환 엔진은 ffmpeg + macOS ImageIO입니다.
+</p>
 
 > 기존 Python 백그라운드 워커(`watch_convert.py`)를 네이티브 SwiftUI 앱으로 개편한 버전입니다.
 > 예전 파일은 `legacy/`에 보존되어 있습니다.
@@ -102,11 +108,6 @@ legacy/                       구 Python 워커 보존
 
 현재는 **개인용 미공증 ad-hoc 빌드**입니다. 다른 사람과 공유하려면 Apple Developer ID가 필요합니다.
 계정 확보 후 `scripts/build_release.sh`(정적 ffmpeg 번들 + Developer ID 서명 + 공증)를 준비해 두었습니다.
-
-## 정리(선택)
-
-레거시 워커가 쓰던 저장소 루트의 `input/ output/ processed/ failed/ logs/` 폴더는 더 이상 사용되지
-않습니다(Sizer는 `~/Movies/Sizer` 사용). 저장소에는 포함되지 않으며(`.gitignore`), 필요 없으면 삭제해도 됩니다.
 
 ## 기여
 
