@@ -9,6 +9,15 @@
   변환하고, <b>움직임 없는(정지) 구간</b>을 잘라냅니다. 변환 엔진은 ffmpeg + macOS ImageIO입니다.
 </p>
 
+<p align="center">
+  <a href="https://github.com/KunmyonChoi/sizer/releases/download/v1.0.0/sizer-tutorial.mp4">
+    <img src="tutorial/preview.gif" width="720" alt="Sizer 30초 튜토리얼">
+  </a>
+</p>
+<p align="center">
+  <a href="https://github.com/KunmyonChoi/sizer/releases/download/v1.0.0/sizer-tutorial.mp4">▶ 30초 튜토리얼 영상 보기 (MP4 · 1080p)</a>
+</p>
+
 > 기존 Python 백그라운드 워커(`watch_convert.py`)를 네이티브 SwiftUI 앱으로 개편한 버전입니다.
 > 예전 파일은 `legacy/`에 보존되어 있습니다.
 
@@ -119,3 +128,7 @@ legacy/                       구 Python 워커 보존
 [MIT](LICENSE). Sizer는 ffmpeg를 별도 실행 파일로 호출할 뿐 링크하지 않으므로 Sizer 소스 코드는 MIT로
 자유롭게 사용할 수 있습니다. ffmpeg 자체는 각자의 라이선스(GPL/LGPL)를 따르며, 바이너리를 함께 재배포할
 경우 해당 라이선스를 준수해야 합니다.
+
+튜토리얼 영상(`tutorial/`)은 [hyperframes](https://github.com/heygen-com/hyperframes)로 제작했으며,
+[Pretendard](https://github.com/orioncactus/pretendard) 폰트([OFL 1.1](tutorial/assets/fonts/OFL.txt))와
+자체 제작 배경음악(`tutorial/assets/bgm.mp3`, MIT)을 사용합니다.

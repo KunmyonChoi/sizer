@@ -25,3 +25,7 @@ DerivedData/
 # 툴링/세션 아티팩트
 .claude/
 .omc/
+
+# hyperframes 튜토리얼 빌드 산출물
+tutorial/out/
+tutorial/node_modules/
