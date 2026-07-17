@@ -7,9 +7,13 @@ on:
 
 jobs:
   build-test:
-    runs-on: macos-14
+    # macos-15는 Xcode 16을 기본 제공(생성되는 pbxproj 포맷과 호환).
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
 
       - name: Install tools
         run: brew install xcodegen ffmpeg
