@@ -80,13 +80,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func startSpin() {
         guard spinTimer == nil else { return }
-        let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            self.spinAngle -= .pi / 15   // 시계방향
-            self.statusItem.button?.image = self.rotated(self.spinnerBase, by: self.spinAngle)
-        }
+        // 타깃-액션 방식(메인 스레드 호출) — Sendable 클로저 격리 경고 회피.
+        let timer = Timer(timeInterval: 0.05, target: self, selector: #selector(spinTick), userInfo: nil, repeats: true)
         RunLoop.main.add(timer, forMode: .common)
         spinTimer = timer
+    }
+
+    @objc private func spinTick() {
+        spinAngle -= .pi / 15   // 시계방향
+        statusItem.button?.image = rotated(spinnerBase, by: spinAngle)
     }
 
     private func stopSpin() {

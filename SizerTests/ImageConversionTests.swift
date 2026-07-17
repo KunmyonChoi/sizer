@@ -17,8 +17,14 @@ final class ImageConversionTests: XCTestCase {
         )
     }
 
+    /// 이 환경에서 특정 포맷 인코딩이 가능한지(예: CI 러너는 AVIF 인코더가 없을 수 있음).
+    private static func canEncode(_ uti: String) -> Bool {
+        (CGImageDestinationCopyTypeIdentifiers() as? [String])?.contains(uti) ?? false
+    }
+
     func testPngConvertsToAvifAndShrinks() throws {
         guard let ffmpeg = FFmpeg.ffmpegURL else { throw XCTSkip("ffmpeg 없음(PNG 픽스처 생성용)") }
+        try XCTSkipUnless(Self.canEncode("public.avif"), "이 환경에서 AVIF 인코딩을 지원하지 않음")
         let fm = FileManager.default
         let root = fm.temporaryDirectory.appendingPathComponent("sizer-img-\(UUID().uuidString)")
         let drop = root.appendingPathComponent("drop")
@@ -47,8 +53,9 @@ final class ImageConversionTests: XCTestCase {
         let outputs = try fm.contentsOfDirectory(at: out, includingPropertiesForKeys: nil)
             .filter { $0.pathExtension == "avif" }
         XCTAssertEqual(outputs.count, 1, "avif 출력이 정확히 1개가 아님")
+        let output = try XCTUnwrap(outputs.first, "avif 출력 없음")
 
-        let newSize = try fm.attributesOfItem(atPath: outputs[0].path)[.size] as? Int ?? 0
+        let newSize = try fm.attributesOfItem(atPath: output.path)[.size] as? Int ?? 0
         XCTAssertGreaterThan(newSize, 0)
         XCTAssertLessThan(newSize, origSize, "AVIF가 원본 PNG보다 작지 않음 (\(newSize) vs \(origSize))")
 
