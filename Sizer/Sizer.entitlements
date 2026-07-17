@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  개인용 미공증 로컬 빌드용 최소 엔타이틀먼트.
+	  App Sandbox 미사용(Developer ID 직접배포 경로) → 사용자 지정 폴더 자유 접근, ffmpeg 자식 프로세스 실행 가능.
+	  후속(Developer ID 확보 시): Hardened Runtime 활성 + 필요한 cs.* 키 추가.
+	-->
+</dict>
+</plist>

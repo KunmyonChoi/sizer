@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+
+# Xcode 프로젝트는 XcodeGen(project.yml)로 생성되므로 커밋하지 않음
+Sizer.xcodeproj/
+*.xcworkspace
+xcuserdata/
+*.xcuserstate
+
+# 빌드 산출물
+build/
+dist/
+DerivedData/
+*.profraw
+*.o
+*.hmap
+
+# 레거시 Python 도구의 런타임 폴더(개인 미디어 포함 — 저장소에 넣지 않음)
+/input/
+/output/
+/processed/
+/failed/
+/logs/
+
+# 툴링/세션 아티팩트
+.claude/
+.omc/

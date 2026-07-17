@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.dilly.snsvideo</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__PYTHON__</string>
+        <string>__BASE_DIR__/watch_convert.py</string>
+    </array>
+
+    <!-- 로그인 시 자동 실행 + 죽으면 재시작 -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>WorkingDirectory</key>
+    <string>__BASE_DIR__</string>
+
+    <!-- ffmpeg(/opt/homebrew/bin) 등을 찾도록 PATH 보강 -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>__BASE_DIR__/logs/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>__BASE_DIR__/logs/launchd.err.log</string>
+</dict>
+</plist>
