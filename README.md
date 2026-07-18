@@ -27,7 +27,26 @@
 - **ffmpeg** — `brew install ffmpeg` (영상 변환에 필요. 이미지 변환은 macOS 내장 ImageIO 사용)
 - 빌드 시: **Xcode 15+**, **XcodeGen** — `brew install xcodegen`
 
-## 설치 (개인용 · 미공증 로컬 빌드)
+## 설치
+
+### Homebrew (권장)
+
+```bash
+brew install KunmyonChoi/tap/sizer
+```
+
+소스에서 **로컬 빌드**되므로 Apple 개발자 등록/공증 없이도 **Gatekeeper 경고 없이** 설치됩니다
+(빌드에 Xcode, 변환에 ffmpeg가 필요하며 ffmpeg는 자동 설치됩니다). 설치 후 메뉴바 앱을
+응용 프로그램에 연결·실행:
+
+```bash
+ln -sfn "$(brew --prefix)/opt/sizer/Sizer.app" /Applications/Sizer.app
+open -a Sizer
+```
+
+최신 개발 버전: `brew install --HEAD KunmyonChoi/tap/sizer`
+
+### 소스에서 직접 빌드
 
 ```bash
 brew install xcodegen ffmpeg     # 이미 있으면 생략
@@ -35,7 +54,7 @@ brew install xcodegen ffmpeg     # 이미 있으면 생략
 ```
 
 - 소스에서 Release 빌드 → ad-hoc 서명 → `/Applications/Sizer.app` 설치 → 실행합니다.
-- Apple Developer ID / 공증이 필요 없습니다(이 머신 전용).
+- Apple Developer ID / 공증이 필요 없습니다(로컬 빌드라 Gatekeeper 경고 없음).
 - 메뉴바에 아이콘이 나타납니다. Dock 아이콘은 없습니다(`LSUIElement`).
 - 첫 알림 때 macOS가 알림 권한을 물으면 **허용**하세요.
 
