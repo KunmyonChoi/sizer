@@ -25,9 +25,46 @@
 
 - **macOS 13+**
 - **ffmpeg** — `brew install ffmpeg` (영상 변환에 필요. 이미지 변환은 macOS 내장 ImageIO 사용)
-- 빌드 시: **Xcode 15+**, **XcodeGen** — `brew install xcodegen`
+- 빌드 시: **전체 Xcode 15+** (Mac App Store 설치 — `xcode-select --install`로 받는 Command Line Tools만으로는
+  빌드되지 않습니다), **XcodeGen** — `brew install xcodegen`
+
+> Sizer는 배포 바이너리가 아니라 **여러분의 Mac에서 소스를 빌드**해 설치합니다. 그래서 전체 Xcode가 필요하며,
+> **Xcode를 한 번도 실행한 적이 없다면 아래 [Xcode 준비](#xcode-준비-처음-한-번만)를 먼저 끝내야** 설치가 됩니다.
 
 ## 설치
+
+### Xcode 준비 (처음 한 번만)
+
+Xcode를 이미 한 번 실행해 구성요소 설치·라이선스 동의까지 마친 분은 이 단계를 건너뛰어도 됩니다.
+**Xcode가 없거나 설치 후 한 번도 연 적이 없다면** 아래를 순서대로 진행하세요. Xcode 앱 창을 직접 열 필요는 없고,
+모두 터미널로 끝납니다.
+
+1. **App Store에서 Xcode 설치** — [App Store에서 Xcode 열기](https://apps.apple.com/app/xcode/id497799835)
+   (수 GB라 다운로드에 시간이 걸립니다). 이미 설치돼 있으면 건너뜁니다.
+2. **빌드 도구를 방금 설치한 Xcode로 지정** (Command Line Tools가 아니라 전체 Xcode를 쓰도록):
+   ```bash
+   sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+   ```
+3. **라이선스 동의 + 첫 실행 구성요소 설치** (원래 Xcode를 처음 열 때 하는 과정을 터미널로 대신):
+   ```bash
+   sudo xcodebuild -license accept
+   sudo xcodebuild -runFirstLaunch
+   ```
+4. **확인** — 버전 문자열이 출력되면 준비 완료입니다:
+   ```bash
+   xcodebuild -version
+   ```
+
+<details>
+<summary>설치 중 이런 오류가 난다면</summary>
+
+- `tool 'xcodebuild' requires Xcode, but active developer directory '/Library/Developer/CommandLineTools' is a command line tools instance`
+  → 전체 Xcode를 가리키지 않은 것입니다. **2번**(`sudo xcode-select -s ...`)을 실행하세요.
+- `You have not agreed to the Xcode/iOS license agreements`
+  → **3번**의 `sudo xcodebuild -license accept`를 실행하세요.
+- `xcode-select: error: unable to get active developer directory` 또는 Xcode.app 경로가 다르면
+  실제 설치 위치로 `-s` 경로를 바꿔 주세요(예: `/Applications/Xcode-beta.app/Contents/Developer`).
+</details>
 
 ### Homebrew (권장)
 
