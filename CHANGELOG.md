@@ -3,6 +3,15 @@
 이 프로젝트의 주요 변경 사항을 기록합니다. 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를
 따르며 [Semantic Versioning](https://semver.org/lang/ko/)을 사용합니다.
 
+## [1.1.0] - 2026-07-19
+
+### Added
+- **플로팅 드롭 타겟** — 화면에 떠 있는 콤팩트 드롭 필(HUD 글래스, 항상 위·이동·위치 기억). Finder에서
+  파일을 드롭하면 드롭 폴더로 복사되어 자동 변환. 드래그 호버 시 확대·글로우, 드롭 성공 시 카운트 플래시.
+- **Homebrew tap** 설치 경로(`brew install KunmyonChoi/tap/sizer`) — 소스 빌드라 개발자 등록/공증 없이
+  Gatekeeper 경고 없이 설치.
+- **30초 튜토리얼 영상**(hyperframes) + README 프리뷰.
+
 ## [1.0.0] - 2026-07-17
 
 ### Added
