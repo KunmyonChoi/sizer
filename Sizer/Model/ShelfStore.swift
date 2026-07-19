@@ -41,4 +41,12 @@ final class ShelfStore: ObservableObject {
     func clear() {
         items.removeAll()
     }
+
+    /// 원본이 사라진(이동/삭제된) 항목 제거. 제거 개수 반환.
+    @discardableResult
+    func pruneMissing() -> Int {
+        let before = items.count
+        items.removeAll { !FileManager.default.fileExists(atPath: $0.url.path) }
+        return before - items.count
+    }
 }

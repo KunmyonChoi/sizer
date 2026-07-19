@@ -9,11 +9,30 @@ final class DropTargetController {
     private let size = NSSize(width: 300, height: 120)
     private let frameKey = "dropTargetOrigin"
 
+    private var screenObserver: NSObjectProtocol?
+
     init(coordinator: WatchCoordinator) {
         self.coordinator = coordinator
+        screenObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.revalidatePosition() }
+        }
     }
 
     var isVisible: Bool { panel?.isVisible ?? false }
+
+    /// 디스플레이 구성이 바뀌면 화면 밖으로 나간 패널을 다시 안으로.
+    private func revalidatePosition() {
+        guard let panel, panel.isVisible else { return }
+        panel.setFrameOrigin(PanelPlacement.visibleOrigin(
+            size: panel.frame.size, saved: panel.frame.origin, defaultCorner: defaultCorner
+        ))
+    }
+
+    private func defaultCorner(_ vf: NSRect) -> NSPoint {
+        NSPoint(x: vf.maxX - size.width - 24, y: vf.minY + 24)   // 우하단
+    }
 
     func toggle() { isVisible ? hide() : show() }
 
@@ -54,15 +73,9 @@ final class DropTargetController {
     }
 
     private func positionPanel(_ panel: NSPanel) {
-        if let origin = savedOrigin() {
-            panel.setFrameOrigin(origin)
-        } else if let screen = NSScreen.main {
-            // 기본 위치: 우하단 여백
-            let vf = screen.visibleFrame
-            panel.setFrameOrigin(NSPoint(x: vf.maxX - size.width - 24, y: vf.minY + 24))
-        } else {
-            panel.center()
-        }
+        panel.setFrameOrigin(PanelPlacement.visibleOrigin(
+            size: size, saved: savedOrigin(), defaultCorner: defaultCorner
+        ))
     }
 
     // MARK: 위치 저장

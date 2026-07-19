@@ -7,6 +7,7 @@ struct ShelfCollectionView: NSViewRepresentable {
     var items: [ShelfItem]
     var onRemove: (ShelfItem) -> Void
     var onMovedOut: (ShelfItem) -> Void   // Finder가 이동(.move)해 원본이 사라진 항목
+    var onDragSession: (Bool) -> Void = { _ in }   // 카드 드래그-아웃 중 여부(셸프 접힘 방지)
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -81,6 +82,7 @@ struct ShelfCollectionView: NSViewRepresentable {
         func collectionView(_ collectionView: NSCollectionView, draggingSession session: NSDraggingSession,
                             willBeginAt screenPoint: NSPoint, forItemsAt indexPaths: Set<IndexPath>) {
             dragged = indexPaths.sorted().compactMap { $0.item < items.count ? items[$0.item] : nil }
+            parent.onDragSession(true)
         }
 
         func collectionView(_ collectionView: NSCollectionView, draggingSession session: NSDraggingSession,
@@ -89,6 +91,7 @@ struct ShelfCollectionView: NSViewRepresentable {
                 dragged.forEach { parent.onMovedOut($0) }
             }
             dragged = []
+            parent.onDragSession(false)
         }
     }
 }
