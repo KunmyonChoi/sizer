@@ -20,6 +20,12 @@ struct MenuBarView: View {
 
             menuDivider
 
+            MenuActionRow(
+                title: coordinator.dropTargetVisible ? "드롭 타겟 숨기기" : "드롭 타겟 표시",
+                systemImage: "square.dashed"
+            ) {
+                coordinator.toggleDropTarget()
+            }
             MenuActionRow(title: "드롭 폴더 열기", systemImage: "folder") {
                 coordinator.revealDropFolder()
             }

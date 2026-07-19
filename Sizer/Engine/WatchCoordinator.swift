@@ -11,11 +11,13 @@ final class WatchCoordinator: ObservableObject {
     @Published private(set) var status: WatchStatus = .idle
     @Published private(set) var recentJobs: [JobRecord] = []
     @Published private(set) var ffmpegAvailable: Bool = FFmpeg.isAvailable
+    @Published private(set) var dropTargetVisible: Bool = false
 
     let settings: AppSettings
 
     private var watcher: FolderWatcher?
     private let workQueue = DispatchQueue(label: "com.dilly.sizer.convert")   // 직렬(동시에 1개)
+    private let ingestQueue = DispatchQueue(label: "com.dilly.sizer.ingest")  // 드롭 파일 복사
     private var active: Set<String> = []       // 큐잉/변환 중인 파일 경로
     private var paused = false
     private var cancellables: Set<AnyCancellable> = []
@@ -35,6 +37,9 @@ final class WatchCoordinator: ObservableObject {
         return SettingsWindowController(rootView: AnyView(root))
     }()
 
+    /// 플로팅 드롭 타겟 패널 컨트롤러.
+    private lazy var dropTargetController = DropTargetController(coordinator: self)
+
     init(settings: AppSettings) {
         self.settings = settings
     }
@@ -51,6 +56,35 @@ final class WatchCoordinator: ObservableObject {
         startCleanupTimer()
         scan()
         updateStatus()
+        restoreDropTarget()
+    }
+
+    // MARK: 플로팅 드롭 타겟
+
+    private func restoreDropTarget() {
+        if settings.dropTargetShown {
+            dropTargetController.show()
+            dropTargetVisible = true
+        }
+    }
+
+    func toggleDropTarget() {
+        dropTargetController.toggle()
+        dropTargetVisible = dropTargetController.isVisible
+        settings.dropTargetShown = dropTargetVisible
+    }
+
+    /// Finder에서 드롭된 URL들을 드롭 폴더로 복사(백그라운드) → 변환 트리거. 복사 예정 개수 반환.
+    @discardableResult
+    func ingest(urls: [URL]) -> Int {
+        let supported = DropIngest.supportedURLs(urls, imageEnabled: settings.imageConversionEnabled)
+        guard !supported.isEmpty else { return 0 }
+        let dropFolder = settings.dropFolderURL
+        ingestQueue.async { [weak self] in
+            DropIngest.copy(supported, to: dropFolder)
+            Task { @MainActor in self?.scan() }
+        }
+        return supported.count
     }
 
     private func startCleanupTimer() {
