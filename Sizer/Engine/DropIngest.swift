@@ -13,25 +13,25 @@ enum DropIngest {
         }
     }
 
-    /// 대상 폴더로 복사(이름 충돌 시 번호 부여). 복사 성공 개수 반환.
+    /// 대상 폴더로 복사(이름 충돌 시 번호 부여). 복사에 성공한 대상 URL 목록 반환.
     @discardableResult
-    static func copy(_ urls: [URL], to dropFolder: URL) -> Int {
+    static func copy(_ urls: [URL], to dropFolder: URL) -> [URL] {
         let fm = FileManager.default
         try? fm.createDirectory(at: dropFolder, withIntermediateDirectories: true)
-        var count = 0
+        var copied: [URL] = []
         for src in urls {
             var isDir: ObjCBool = false
             guard fm.fileExists(atPath: src.path, isDirectory: &isDir), !isDir.boolValue else { continue }
             let dest = uniqueDestination(for: src, in: dropFolder)
             do {
                 try fm.copyItem(at: src, to: dest)
-                count += 1
+                copied.append(dest)
                 AppLogger.info("드롭 수집: \(src.lastPathComponent) → \(dest.lastPathComponent)")
             } catch {
                 AppLogger.warn("드롭 복사 실패: \(src.lastPathComponent) — \(error.localizedDescription)")
             }
         }
-        return count
+        return copied
     }
 
     static func uniqueDestination(for src: URL, in folder: URL) -> URL {

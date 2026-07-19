@@ -16,6 +16,7 @@ final class AppSettings: ObservableObject {
     // MARK: 일반
     @Published var launchAtLogin: Bool { didSet { save(launchAtLogin, .launchAtLogin) } }
     @Published var notificationsEnabled: Bool { didSet { save(notificationsEnabled, .notificationsEnabled) } }
+    @Published var openOutputAfterDrop: Bool { didSet { save(openOutputAfterDrop, .openOutputAfterDrop) } }
 
     // MARK: processed 자동 정리
     @Published var autoCleanProcessedEnabled: Bool { didSet { save(autoCleanProcessedEnabled, .autoCleanProcessed) } }
@@ -143,6 +144,7 @@ final class AppSettings: ObservableObject {
 
         launchAtLogin = defaults.object(forKey: Key.launchAtLogin.rawValue) as? Bool ?? false
         notificationsEnabled = defaults.object(forKey: Key.notificationsEnabled.rawValue) as? Bool ?? true
+        openOutputAfterDrop = defaults.object(forKey: Key.openOutputAfterDrop.rawValue) as? Bool ?? true
 
         autoCleanProcessedEnabled = defaults.object(forKey: Key.autoCleanProcessed.rawValue) as? Bool ?? true
         processedRetentionDays = defaults.object(forKey: Key.processedRetentionDays.rawValue) as? Int ?? 30
@@ -180,8 +182,8 @@ final class AppSettings: ObservableObject {
         imageQuality = defaults.object(forKey: Key.imageQuality.rawValue) as? Double ?? 0.8
         imageMaxLongEdge = defaults.object(forKey: Key.imageMaxLongEdge.rawValue) as? Int ?? 0
 
-        dropTargetShown = defaults.object(forKey: Key.dropTargetShown.rawValue) as? Bool ?? false
-        shelfShown = defaults.object(forKey: Key.shelfShown.rawValue) as? Bool ?? false
+        dropTargetShown = defaults.object(forKey: Key.dropTargetShown.rawValue) as? Bool ?? true   // 기본 보이기
+        shelfShown = defaults.object(forKey: Key.shelfShown.rawValue) as? Bool ?? false            // 기본 감추기
     }
 
     /// 기본 베이스 폴더: ~/Movies/Sizer
@@ -202,7 +204,7 @@ final class AppSettings: ObservableObject {
 
     private enum Key: String {
         case dropFolder, outputFolder, processedFolder, failedFolder
-        case launchAtLogin, notificationsEnabled
+        case launchAtLogin, notificationsEnabled, openOutputAfterDrop
         case autoCleanProcessed, processedRetentionDays
         case videoCodec, crf, preset, maxLongEdge, audioBitrate, outputSuffix
         case trimStill   // 레거시(마이그레이션용)

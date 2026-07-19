@@ -32,6 +32,7 @@ struct GeneralSettingsView: View {
             Section("일반") {
                 Toggle("로그인 시 자동 시작", isOn: $settings.launchAtLogin)
                 Toggle("변환 완료·실패 알림 표시", isOn: $settings.notificationsEnabled)
+                Toggle("드롭 타겟 변환 후 출력 폴더 열기", isOn: $settings.openOutputAfterDrop)
             }
 
             Section("정리") {

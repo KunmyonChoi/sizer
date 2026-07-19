@@ -40,7 +40,7 @@ final class DropIngestTests: XCTestCase {
         // 드롭 폴더에 같은 이름 선점 → 복사 시 번호 부여되어야 함
         try Data("existing".utf8).write(to: drop.appendingPathComponent("clip.mp4"))
 
-        let count = DropIngest.copy([a], to: drop)
+        let count = DropIngest.copy([a], to: drop).count
         XCTAssertEqual(count, 1)
         let names = try FileManager.default.contentsOfDirectory(at: drop, includingPropertiesForKeys: nil)
             .map { $0.lastPathComponent }
@@ -55,7 +55,7 @@ final class DropIngestTests: XCTestCase {
         let subdir = src.appendingPathComponent("folder")
         try FileManager.default.createDirectory(at: subdir, withIntermediateDirectories: true)
 
-        let count = DropIngest.copy([subdir], to: drop)
+        let count = DropIngest.copy([subdir], to: drop).count
         XCTAssertEqual(count, 0, "디렉터리는 복사하지 않아야 함")
     }
 }

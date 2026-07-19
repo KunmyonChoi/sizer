@@ -19,6 +19,8 @@ final class WatchCoordinator: ObservableObject {
     private var watcher: FolderWatcher?
     private let workQueue = DispatchQueue(label: "com.dilly.sizer.convert")   // 직렬(동시에 1개)
     private let ingestQueue = DispatchQueue(label: "com.dilly.sizer.ingest")  // 드롭 파일 복사
+    private var dropTargetPending: Set<String> = []   // 드롭 타겟으로 넣어 변환 대기 중인 파일명
+    private var openOutputWork: DispatchWorkItem?
     private var active: Set<String> = []       // 큐잉/변환 중인 파일 경로
     private var paused = false
     private var cancellables: Set<AnyCancellable> = []
@@ -95,10 +97,25 @@ final class WatchCoordinator: ObservableObject {
         guard !supported.isEmpty else { return 0 }
         let dropFolder = settings.dropFolderURL
         ingestQueue.async { [weak self] in
-            DropIngest.copy(supported, to: dropFolder)
-            Task { @MainActor in self?.scan() }
+            let dests = DropIngest.copy(supported, to: dropFolder)
+            Task { @MainActor in
+                self?.dropTargetPending.formUnion(dests.map { $0.lastPathComponent })
+                self?.scan()
+            }
         }
         return supported.count
+    }
+
+    /// 드롭 타겟 변환 완료 후 출력 폴더를 연다(짧게 디바운스해 배치당 1회).
+    private func scheduleOpenOutput() {
+        openOutputWork?.cancel()
+        let folder = settings.outputFolderURL
+        let work = DispatchWorkItem {
+            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            NSWorkspace.shared.open(folder)
+        }
+        openOutputWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: work)
     }
 
     private func startCleanupTimer() {
@@ -207,6 +224,10 @@ final class WatchCoordinator: ObservableObject {
 
     private func finish(outcome: JobOutcome, key: String) {
         active.remove(key)
+        // 드롭 타겟으로 넣은 파일이 변환 완료되면 출력 폴더 자동 열기(배치당 1회)
+        if dropTargetPending.remove(outcome.sourceName) != nil, outcome.success, settings.openOutputAfterDrop {
+            scheduleOpenOutput()
+        }
         let record = JobRecord(
             sourceName: outcome.sourceName,
             outputName: outcome.outputName,
