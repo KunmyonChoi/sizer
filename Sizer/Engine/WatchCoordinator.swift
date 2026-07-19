@@ -12,6 +12,7 @@ final class WatchCoordinator: ObservableObject {
     @Published private(set) var recentJobs: [JobRecord] = []
     @Published private(set) var ffmpegAvailable: Bool = FFmpeg.isAvailable
     @Published private(set) var dropTargetVisible: Bool = false
+    @Published private(set) var shelfVisible: Bool = false
 
     let settings: AppSettings
 
@@ -40,6 +41,9 @@ final class WatchCoordinator: ObservableObject {
     /// 플로팅 드롭 타겟 패널 컨트롤러.
     private lazy var dropTargetController = DropTargetController(coordinator: self)
 
+    /// 파일 셸프 패널 컨트롤러.
+    private lazy var shelfController = ShelfController()
+
     init(settings: AppSettings) {
         self.settings = settings
     }
@@ -66,12 +70,22 @@ final class WatchCoordinator: ObservableObject {
             dropTargetController.show()
             dropTargetVisible = true
         }
+        if settings.shelfShown {
+            shelfController.show()
+            shelfVisible = true
+        }
     }
 
     func toggleDropTarget() {
         dropTargetController.toggle()
         dropTargetVisible = dropTargetController.isVisible
         settings.dropTargetShown = dropTargetVisible
+    }
+
+    func toggleShelf() {
+        shelfController.toggle()
+        shelfVisible = shelfController.isVisible
+        settings.shelfShown = shelfVisible
     }
 
     /// Finder에서 드롭된 URL들을 드롭 폴더로 복사(백그라운드) → 변환 트리거. 복사 예정 개수 반환.

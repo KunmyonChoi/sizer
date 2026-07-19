@@ -21,8 +21,9 @@ final class AppSettings: ObservableObject {
     @Published var autoCleanProcessedEnabled: Bool { didSet { save(autoCleanProcessedEnabled, .autoCleanProcessed) } }
     @Published var processedRetentionDays: Int { didSet { save(processedRetentionDays, .processedRetentionDays) } }
 
-    // MARK: 플로팅 드롭 타겟
+    // MARK: 플로팅 드롭 타겟 / 파일 셸프
     @Published var dropTargetShown: Bool { didSet { save(dropTargetShown, .dropTargetShown) } }
+    @Published var shelfShown: Bool { didSet { save(shelfShown, .shelfShown) } }
 
     // MARK: 인코딩
     @Published var videoCodecRaw: String { didSet { save(videoCodecRaw, .videoCodec) } }
@@ -156,6 +157,7 @@ final class AppSettings: ObservableObject {
         imageMaxLongEdge = defaults.object(forKey: Key.imageMaxLongEdge.rawValue) as? Int ?? 0
 
         dropTargetShown = defaults.object(forKey: Key.dropTargetShown.rawValue) as? Bool ?? false
+        shelfShown = defaults.object(forKey: Key.shelfShown.rawValue) as? Bool ?? false
     }
 
     /// 기본 베이스 폴더: ~/Movies/Sizer
@@ -182,7 +184,7 @@ final class AppSettings: ObservableObject {
         case trimStill, sensitivity, stillNoiseDb, stillMinDuration
         case mergeGapMax, minKeep, pad, smoothTransitions, minKeepRatio
         case imageEnabled, imageFormat, imageQuality, imageMaxLongEdge
-        case dropTargetShown
+        case dropTargetShown, shelfShown
     }
 
     private func save(_ value: Any, _ key: Key) {

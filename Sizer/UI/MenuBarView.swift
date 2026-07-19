@@ -26,6 +26,12 @@ struct MenuBarView: View {
             ) {
                 coordinator.toggleDropTarget()
             }
+            MenuActionRow(
+                title: coordinator.shelfVisible ? "파일 셸프 숨기기" : "파일 셸프 표시",
+                systemImage: "square.stack.3d.up"
+            ) {
+                coordinator.toggleShelf()
+            }
             MenuActionRow(title: "드롭 폴더 열기", systemImage: "folder") {
                 coordinator.revealDropFolder()
             }
