@@ -9,30 +9,11 @@ final class DropTargetController {
     private let size = NSSize(width: 300, height: 120)
     private let frameKey = "dropTargetOrigin"
 
-    private var screenObserver: NSObjectProtocol?
-
     init(coordinator: WatchCoordinator) {
         self.coordinator = coordinator
-        screenObserver = NotificationCenter.default.addObserver(
-            forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in self?.revalidatePosition() }
-        }
     }
 
     var isVisible: Bool { panel?.isVisible ?? false }
-
-    /// 디스플레이 구성이 바뀌면 화면 밖으로 나간 패널을 다시 안으로.
-    private func revalidatePosition() {
-        guard let panel, panel.isVisible else { return }
-        panel.setFrameOrigin(PanelPlacement.visibleOrigin(
-            size: panel.frame.size, saved: panel.frame.origin, defaultCorner: defaultCorner
-        ))
-    }
-
-    private func defaultCorner(_ vf: NSRect) -> NSPoint {
-        NSPoint(x: vf.maxX - size.width - 24, y: vf.minY + 24)   // 우하단
-    }
 
     func toggle() { isVisible ? hide() : show() }
 
@@ -69,13 +50,44 @@ final class DropTargetController {
         host.autoresizingMask = [.width, .height]
         host.appearance = NSAppearance(named: .darkAqua)   // HUD 다크 글래스 + 흰 텍스트
         panel.contentView = host
+
+        // 디스플레이 구성이 바뀌면(모니터 변경 등) 화면 밖으로 나간 패널을 다시 안으로.
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.ensureOnScreen() }
+        }
         return panel
     }
 
     private func positionPanel(_ panel: NSPanel) {
-        panel.setFrameOrigin(PanelPlacement.visibleOrigin(
-            size: size, saved: savedOrigin(), defaultCorner: defaultCorner
-        ))
+        if let origin = savedOrigin(), Self.isVisible(origin: origin, size: size) {
+            panel.setFrameOrigin(origin)
+        } else {
+            panel.setFrameOrigin(defaultOrigin())
+        }
+    }
+
+    private func ensureOnScreen() {
+        guard let panel, panel.isVisible else { return }
+        if !Self.isVisible(origin: panel.frame.origin, size: panel.frame.size) {
+            panel.setFrameOrigin(defaultOrigin())
+        }
+    }
+
+    private func defaultOrigin() -> NSPoint {
+        guard let vf = NSScreen.main?.visibleFrame else { return .zero }
+        return NSPoint(x: vf.maxX - size.width - 24, y: vf.minY + 24)
+    }
+
+    /// 프레임이 어떤 화면과도 충분히(가로·세로 40pt 이상) 겹치지 않으면 보이지 않는 것으로 본다.
+    static func isVisible(origin: NSPoint, size: NSSize) -> Bool {
+        let frame = NSRect(origin: origin, size: size)
+        for screen in NSScreen.screens {
+            let inter = screen.visibleFrame.intersection(frame)
+            if inter.width >= 40, inter.height >= 40 { return true }
+        }
+        return false
     }
 
     // MARK: 위치 저장

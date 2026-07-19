@@ -14,14 +14,21 @@ struct ShelfItem: Identifiable, Equatable {
 final class ShelfStore: ObservableObject {
     @Published private(set) var items: [ShelfItem] = []
 
+    /// 셸프 최대 보관 개수(대량 드롭 시 과부하 방지).
+    static let maxItems = 200
+
     var isEmpty: Bool { items.isEmpty }
     var count: Int { items.count }
 
-    /// URL들을 추가(같은 경로 중복은 무시). 추가된 개수 반환.
+    /// URL들을 추가(같은 경로 중복 무시, 상한 초과 무시). 추가된 개수 반환.
     @discardableResult
     func add(_ urls: [URL]) -> Int {
         var added = 0
         for url in urls where url.isFileURL {
+            guard items.count < Self.maxItems else {
+                AppLogger.warn("셸프 상한(\(Self.maxItems)) 초과 — 일부 파일은 추가되지 않았습니다.")
+                break
+            }
             let std = url.standardizedFileURL
             guard !items.contains(where: { $0.url.standardizedFileURL == std }) else { continue }
             items.append(ShelfItem(url: std))
@@ -40,13 +47,5 @@ final class ShelfStore: ObservableObject {
 
     func clear() {
         items.removeAll()
-    }
-
-    /// 원본이 사라진(이동/삭제된) 항목 제거. 제거 개수 반환.
-    @discardableResult
-    func pruneMissing() -> Int {
-        let before = items.count
-        items.removeAll { !FileManager.default.fileExists(atPath: $0.url.path) }
-        return before - items.count
     }
 }
