@@ -1,191 +1,244 @@
 import AppKit
 import SwiftUI
-import Combine
 
-/// 셸프의 접힘/펼침 상태 + 드래그 세션 표시(뷰 ↔ 컨트롤러 공유).
-@MainActor
-final class ShelfPresentation: ObservableObject {
-    @Published var expanded = false
-    @Published var dragging = false   // 카드를 Finder로 드래그하는 중(접힘 방지)
-}
-
-/// 파일 셸프 플로팅 패널. 평상시 정사각형으로 최소화, 호버/드래그 시 모서리 기준으로 펼침.
-/// 항상 위, 드래그 시 화면 모서리에 마그넷 스냅, 위치 기억.
+/// 파일 셸프 — 화면 왼쪽 가장자리에 접혀 있다가, 파일 드래그가 접근하거나 마우스를 대면 펼쳐진다.
+/// 접힘 상태에서는 마우스가 있는 화면의 왼쪽 가장자리를 따라 이동한다.
 @MainActor
 final class ShelfController {
-    private var panel: NSPanel?
     let store = ShelfStore()
-    let presentation = ShelfPresentation()
 
-    private let collapsedSize = NSSize(width: 56, height: 56)
-    private let expandedSize = NSSize(width: 472, height: 210)
-    private let frameKey = "shelfOrigin"
+    private var panel: NSPanel?
+    private var hostingView: NSHostingView<ShelfView>?
+    private let handleW = ShelfView.handleWidth
+    private let expandedW = ShelfView.expandedWidth
+    private let height = ShelfView.height
 
-    // 현재 앵커 모서리(최소화 위치 기준). 이 모서리를 고정하고 안쪽으로 펼친다.
-    private var anchorLeft = true
-    private var anchorBottom = true
-    private var isProgrammaticMove = false
-    private var snapTask: Task<Void, Never>?
+    private var expanded = false
+    private var isDraggingOut = false
+    private var dockedScreen: NSScreen?
 
-    private var cancellables: Set<AnyCancellable> = []
+    private var pollTimer: Timer?
     private var screenObserver: NSObjectProtocol?
-    private var moveObserver: NSObjectProtocol?
+    private var expandWork: DispatchWorkItem?
+    private var collapseWork: DispatchWorkItem?
 
-    init() {
-        presentation.$expanded
-            .removeDuplicates()
-            .sink { [weak self] expanded in self?.applyExpanded(expanded) }
-            .store(in: &cancellables)
-
-        screenObserver = NotificationCenter.default.addObserver(
-            forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in self?.revalidatePosition() }
-        }
-    }
+    private let vFracKey = "shelfVerticalFraction"   // 0(하단)~1(상단)
 
     var isVisible: Bool { panel?.isVisible ?? false }
 
     func toggle() { isVisible ? hide() : show() }
 
     func show() {
-        store.pruneMissing()
         let panel = self.panel ?? makePanel()
         self.panel = panel
-        presentation.expanded = false
-        let origin = PanelPlacement.visibleOrigin(size: collapsedSize, saved: savedOrigin(), defaultCorner: defaultCorner)
-        setFramePanel(NSRect(origin: origin, size: collapsedSize), animate: false)
-        updateAnchor(from: NSRect(origin: origin, size: collapsedSize))
+        dockPanel(to: ScreenUtils.screenWithMouse(), expanded: false)
         panel.orderFrontRegardless()
+        startPolling()
+        observeScreenChanges()
     }
 
     func hide() {
-        if let panel { saveOrigin(panel.frame.origin) }
+        stopPolling()
         panel?.orderOut(nil)
-    }
-
-    // MARK: 접힘/펼침 (모서리 기준)
-
-    private func applyExpanded(_ expanded: Bool) {
-        guard let panel, panel.isVisible else { return }
-        if expanded { store.pruneMissing() }
-
-        let current = panel.frame
-        let vf = PanelPlacement.screenVisibleFrame(containing: current.origin)
-        // 앵커 모서리의 고정 점(현재 프레임에서)
-        let fixedX = anchorLeft ? current.minX : current.maxX
-        let fixedY = anchorBottom ? current.minY : current.maxY
-        let target = expanded ? expandedSize : collapsedSize
-        var origin = NSPoint(
-            x: anchorLeft ? fixedX : fixedX - target.width,
-            y: anchorBottom ? fixedY : fixedY - target.height
-        )
-        origin = PanelPlacement.clamp(origin: origin, size: target, into: vf)
-        setFramePanel(NSRect(origin: origin, size: target), animate: true)
-    }
-
-    private func revalidatePosition() {
-        guard let panel, panel.isVisible else { return }
-        let origin = PanelPlacement.visibleOrigin(size: panel.frame.size, saved: panel.frame.origin, defaultCorner: defaultCorner)
-        setFramePanel(NSRect(origin: origin, size: panel.frame.size), animate: true)
-        updateAnchor(from: NSRect(origin: origin, size: panel.frame.size))
-    }
-
-    private func defaultCorner(_ vf: NSRect) -> NSPoint {
-        NSPoint(x: vf.minX + 24, y: vf.minY + 24)   // 좌하단(첫 실행)
-    }
-
-    // MARK: 앵커 & 마그넷 스냅
-
-    private func updateAnchor(from frame: NSRect) {
-        let vf = PanelPlacement.screenVisibleFrame(containing: frame.origin)
-        anchorLeft = (frame.midX - vf.minX) <= (vf.maxX - frame.midX)
-        anchorBottom = (frame.midY - vf.minY) <= (vf.maxY - frame.midY)
-    }
-
-    /// 드래그가 멈추면 가까운 화면 모서리에 스냅.
-    private func scheduleSnap() {
-        snapTask?.cancel()
-        snapTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 180_000_000)
-            guard !Task.isCancelled, let panel, panel.isVisible, !presentation.expanded else { return }
-            let snapped = snappedFrame(panel.frame)
-            if snapped != panel.frame {
-                setFramePanel(snapped, animate: true)
-            }
-            updateAnchor(from: snapped)
-            saveOrigin(snapped.origin)
-        }
-    }
-
-    private func snappedFrame(_ frame: NSRect) -> NSRect {
-        let vf = PanelPlacement.screenVisibleFrame(containing: frame.origin)
-        let margin: CGFloat = 16
-        let threshold: CGFloat = 48
-        var x = frame.origin.x
-        var y = frame.origin.y
-        if x - vf.minX < threshold { x = vf.minX + margin }
-        else if vf.maxX - frame.maxX < threshold { x = vf.maxX - frame.width - margin }
-        if y - vf.minY < threshold { y = vf.minY + margin }
-        else if vf.maxY - frame.maxY < threshold { y = vf.maxY - frame.height - margin }
-        return NSRect(x: x, y: y, width: frame.width, height: frame.height)
     }
 
     // MARK: 패널
 
-    private func setFramePanel(_ frame: NSRect, animate: Bool) {
-        guard let panel else { return }
-        isProgrammaticMove = true
-        panel.setFrame(frame, display: true, animate: animate)
-        if animate {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) { [weak self] in self?.isProgrammaticMove = false }
-        } else {
-            isProgrammaticMove = false
-        }
-    }
-
     private func makePanel() -> NSPanel {
         let panel = NSPanel(
-            contentRect: NSRect(origin: .zero, size: collapsedSize),
-            styleMask: [.borderless, .nonactivatingPanel],
-            backing: .buffered, defer: false
+            contentRect: NSRect(x: 0, y: 0, width: handleW, height: height),
+            styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false
         )
         panel.level = .floating
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        panel.hasShadow = true
-        panel.isMovableByWindowBackground = true
+        panel.hasShadow = false
+        panel.isMovableByWindowBackground = false     // 엣지 고정
         panel.hidesOnDeactivate = false
-        panel.acceptsMouseMovedEvents = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
-        let hosting = NSHostingController(rootView: ShelfView(store: store, presentation: presentation))
-        hosting.view.frame = NSRect(origin: .zero, size: collapsedSize)
-        panel.contentViewController = hosting
-        panel.appearance = NSAppearance(named: .darkAqua)
+        let host = NSHostingView(rootView: ShelfView(store: store, onDragSession: { [weak self] active in
+            self?.setDraggingOut(active)
+        }))
+        host.frame = NSRect(x: 0, y: 0, width: expandedW, height: height)   // 항상 펼친 크기
+        host.appearance = NSAppearance(named: .darkAqua)
+        hostingView = host
 
-        moveObserver = NotificationCenter.default.addObserver(
-            forName: NSWindow.didMoveNotification, object: panel, queue: .main
-        ) { [weak self, weak panel] _ in
-            guard let self, let panel else { return }
-            Task { @MainActor in
-                guard !self.isProgrammaticMove else { return }   // 프로그램적 이동은 무시
-                self.saveOrigin(panel.frame.origin)
-                if !self.presentation.expanded {
-                    self.updateAnchor(from: panel.frame)
-                    self.scheduleSnap()   // 사용자 드래그 → 마그넷 스냅
-                }
-            }
+        let catcher = ShelfDragCatchView(frame: NSRect(x: 0, y: 0, width: handleW, height: height))
+        catcher.autoresizingMask = [.width, .height]
+        catcher.addSubview(host)
+        catcher.onDragEntered = { [weak self] in self?.expand() }
+        catcher.onDragExited = { [weak self] in self?.scheduleCollapse() }
+        catcher.onDropURLs = { [weak self] urls in
+            self?.store.add(urls)
+            self?.scheduleCollapse(delay: 0.8)
         }
+        panel.contentView = catcher
         return panel
     }
 
-    private func saveOrigin(_ origin: NSPoint) {
-        UserDefaults.standard.set([origin.x, origin.y], forKey: frameKey)
+    private func dockPanel(to screen: NSScreen?, expanded: Bool) {
+        guard let panel, let screen = screen ?? NSScreen.main else { return }
+        dockedScreen = screen
+        self.expanded = expanded
+        let width = expanded ? expandedW : handleW
+        panel.setFrame(frame(on: screen, width: width), display: true)
     }
 
-    private func savedOrigin() -> NSPoint? {
-        guard let arr = UserDefaults.standard.array(forKey: frameKey) as? [Double], arr.count == 2 else { return nil }
-        return NSPoint(x: arr[0], y: arr[1])
+    private func frame(on screen: NSScreen, width: CGFloat) -> NSRect {
+        let vf = screen.visibleFrame
+        let frac = UserDefaults.standard.object(forKey: vFracKey) as? Double ?? 0.5
+        let usable = max(0, vf.height - height)
+        let y = vf.minY + usable * CGFloat(frac)
+        return NSRect(x: vf.minX, y: y, width: width, height: height)
+    }
+
+    private func setPanelWidth(_ width: CGFloat, animate: Bool) {
+        guard let panel, let screen = dockedScreen else { return }
+        let target = frame(on: screen, width: width)
+        if animate {
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.22
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                panel.animator().setFrame(target, display: true)
+            }
+        } else {
+            panel.setFrame(target, display: true)
+        }
+    }
+
+    // MARK: 펼침/접힘
+
+    private func expand() {
+        collapseWork?.cancel(); collapseWork = nil
+        expandWork?.cancel(); expandWork = nil
+        guard !expanded else { return }
+        expanded = true
+        setPanelWidth(expandedW, animate: true)
+    }
+
+    private func scheduleCollapse(delay: TimeInterval = 0.4) {
+        collapseWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.collapseIfIdle() }
+        collapseWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
+
+    private func collapseIfIdle() {
+        guard expanded, !isDraggingOut, let panel else { return }
+        // 커서가 아직 패널 위(여유 8px)면 유지
+        if panel.frame.insetBy(dx: -8, dy: -8).contains(NSEvent.mouseLocation) {
+            scheduleCollapse(); return
+        }
+        expanded = false
+        setPanelWidth(handleW, animate: true)
+    }
+
+    private func setDraggingOut(_ active: Bool) {
+        isDraggingOut = active
+        if active { collapseWork?.cancel() } else { scheduleCollapse() }
+    }
+
+    // MARK: 마우스 폴링(호버 펼침 + 화면 따라가기)
+
+    private func startPolling() {
+        guard pollTimer == nil else { return }
+        pollTimer = Timer.scheduledTimer(timeInterval: 0.08, target: self, selector: #selector(poll), userInfo: nil, repeats: true)
+        RunLoop.main.add(pollTimer!, forMode: .common)
+    }
+
+    private func stopPolling() {
+        pollTimer?.invalidate(); pollTimer = nil
+        expandWork?.cancel(); collapseWork?.cancel()
+    }
+
+    @objc private func poll() {
+        guard let panel, panel.isVisible else { return }
+        let mouse = NSEvent.mouseLocation
+
+        // 접힘 상태에서 다른 화면으로 이동하면 그 화면 가장자리로 재도킹
+        if !expanded, !isDraggingOut, let mScreen = ScreenUtils.screenWithMouse(),
+           mScreen.frame != dockedScreen?.frame {
+            dockPanel(to: mScreen, expanded: false)
+            return
+        }
+        guard let screen = dockedScreen else { return }
+        let vf = screen.visibleFrame
+
+        if !expanded {
+            // 왼쪽 가장자리 탭 밴드 안에 dwell → 펼침
+            let inBand = mouse.x <= vf.minX + handleW + 4
+                && mouse.y >= panel.frame.minY && mouse.y <= panel.frame.maxY
+                && NSMouseInRect(mouse, screen.frame, false)
+            if inBand {
+                if expandWork == nil {
+                    let work = DispatchWorkItem { [weak self] in self?.expandWork = nil; self?.expand() }
+                    expandWork = work
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.18, execute: work)
+                }
+            } else {
+                expandWork?.cancel(); expandWork = nil
+            }
+        } else if !isDraggingOut {
+            // 펼침 상태: 커서가 패널을 벗어나면 접힘 예약
+            if panel.frame.insetBy(dx: -10, dy: -10).contains(mouse) {
+                collapseWork?.cancel(); collapseWork = nil
+            } else if collapseWork == nil {
+                scheduleCollapse()
+            }
+        }
+    }
+
+    // MARK: 화면 변경
+
+    private func observeScreenChanges() {
+        guard screenObserver == nil else { return }
+        screenObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.reDockAfterScreenChange() }
+        }
+    }
+
+    private func reDockAfterScreenChange() {
+        guard let panel, panel.isVisible else { return }
+        let stillThere = dockedScreen.flatMap { docked in
+            NSScreen.screens.contains { $0.frame == docked.frame } ? docked : nil
+        }
+        let screen = stillThere ?? ScreenUtils.screenWithMouse() ?? NSScreen.main
+        dockPanel(to: screen, expanded: expanded)
+        // 재도킹 후에도 혹시 화면 밖이면 클램프
+        panel.setFrame(ScreenUtils.clampedOnScreen(panel.frame), display: true)
+    }
+}
+
+/// 접힌 탭/펼친 트레이 위로 오는 파일 드래그를 받는 뷰(펼침 트리거 + 드롭 수집).
+final class ShelfDragCatchView: NSView {
+    var onDropURLs: (([URL]) -> Void)?
+    var onDragEntered: (() -> Void)?
+    var onDragExited: (() -> Void)?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        registerForDraggedTypes([.fileURL])
+    }
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        registerForDraggedTypes([.fileURL])
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        onDragEntered?()
+        return .copy
+    }
+    override func draggingExited(_ sender: NSDraggingInfo?) { onDragExited?() }
+    override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool { true }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        let objs = sender.draggingPasteboard.readObjects(
+            forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]
+        ) as? [URL] ?? []
+        onDropURLs?(objs.filter { $0.isFileURL })
+        return true
     }
 }

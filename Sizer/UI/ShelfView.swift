@@ -1,229 +1,108 @@
 import SwiftUI
-import UniformTypeIdentifiers
-import QuickLookThumbnailing
 
-/// 파일 셸프 패널 내용. 평상시 정사각형으로 최소화, 호버/드래그 시 썸네일 트레이로 펼침.
+/// 엣지-도킹 셸프 내용. 왼쪽 얇은 핸들 + 오른쪽 트레이(카드). 패널 폭이 접힘/펼침을 결정하고
+/// 내용은 항상 펼친 크기로 배치되어(핸들이 x=0), 패널이 좁을 땐 핸들만 보인다.
 struct ShelfView: View {
     @ObservedObject var store: ShelfStore
-    @ObservedObject var presentation: ShelfPresentation
+    var onDragSession: (Bool) -> Void = { _ in }
 
-    @State private var targeted = false
-    @State private var hovering = false
-    @State private var collapseTask: Task<Void, Never>?
-    @State private var dragResetTask: Task<Void, Never>?
+    static let handleWidth: CGFloat = 22
+    static let trayWidth: CGFloat = 450
+    static let height: CGFloat = 220
+    static var expandedWidth: CGFloat { handleWidth + trayWidth }
 
     private let grad = LinearGradient(
         colors: [Color(hex: 0x0EA5E9), Color(hex: 0x6366F1), Color(hex: 0x8B5CF6)],
         startPoint: .topLeading, endPoint: .bottomTrailing
     )
-    private var accent: Color { Color(hex: 0x6366F1) }
 
     var body: some View {
-        Group {
-            if presentation.expanded { expandedTray } else { collapsedIcon }
+        HStack(spacing: 0) {
+            handle
+            Rectangle().fill(Color.white.opacity(0.12)).frame(width: 1)
+            tray
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(width: Self.expandedWidth, height: Self.height)
         .background {
             ZStack {
                 VisualEffectBackground()
                 Color.black.opacity(0.24)
             }
-            .clipShape(RoundedRectangle(cornerRadius: presentation.expanded ? 22 : 16, style: .continuous))
+            .clipShape(edgeShape)
         }
-        .overlay(
-            RoundedRectangle(cornerRadius: presentation.expanded ? 22 : 16, style: .continuous)
-                .strokeBorder(targeted ? AnyShapeStyle(grad) : AnyShapeStyle(Color.white.opacity(0.12)),
-                              lineWidth: targeted ? 2.5 : 1)
-        )
-        .contentShape(RoundedRectangle(cornerRadius: 16))
-        .onHover { h in
-            hovering = h
-            if h { expand() } else { scheduleCollapse() }
-        }
-        .onDrop(of: [.fileURL], isTargeted: $targeted) { providers in handleDrop(providers) }
-        .onChange(of: targeted) { t in if t { expand() } else { scheduleCollapse() } }
+        .overlay(edgeShape.strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+        .shadow(color: .black.opacity(0.30), radius: 22, x: 8, y: 6)
     }
 
-    // MARK: 최소화(정사각형 아이콘)
+    private var edgeShape: UnevenRoundedRectangle {
+        UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 0,
+                               bottomTrailingRadius: 24, topTrailingRadius: 24, style: .continuous)
+    }
 
-    private var collapsedIcon: some View {
-        ZStack(alignment: .topTrailing) {
-            RoundedRectangle(cornerRadius: 11, style: .continuous)
+    // MARK: 핸들(접힘 시 보이는 얇은 탭)
+
+    private var handle: some View {
+        VStack(spacing: 10) {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .fill(grad)
-                .frame(width: 34, height: 34)
-                .overlay(Image(systemName: "square.stack.3d.up.fill").font(.system(size: 16, weight: .bold)).foregroundStyle(.white))
-                .shadow(color: accent.opacity(0.5), radius: 6, y: 2)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(width: 15, height: 15)
+                .overlay(Image(systemName: "square.stack.3d.up.fill").font(.system(size: 8, weight: .bold)).foregroundStyle(.white))
+            Image(systemName: "chevron.compact.right")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(.white.opacity(0.4))
+            Spacer()
             if !store.isEmpty {
-                Text("\(store.count)")
-                    .font(.system(size: 11, weight: .heavy)).foregroundStyle(.white)
-                    .frame(minWidth: 18, minHeight: 18)
-                    .background(Circle().fill(accent))
-                    .overlay(Circle().stroke(Color.black.opacity(0.35), lineWidth: 1.5))
-                    .offset(x: -4, y: 4)
+                Text("\(min(store.count, 99))")
+                    .font(.system(size: 10, weight: .heavy))
+                    .foregroundStyle(.white)
+                    .frame(width: 18, height: 18)
+                    .background(Circle().fill(Color(hex: 0x6366F1)))
             }
         }
+        .padding(.vertical, 12)
+        .frame(width: Self.handleWidth)
     }
 
-    // MARK: 펼침(트레이)
+    // MARK: 트레이(펼침 시 카드)
 
-    private var expandedTray: some View {
+    private var tray: some View {
         VStack(spacing: 0) {
-            header
-            Divider().overlay(Color.white.opacity(0.12))
-            content
-        }
-    }
-
-    private var header: some View {
-        HStack(spacing: 10) {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(grad).frame(width: 28, height: 28)
-                .overlay(Image(systemName: "square.stack.3d.up.fill").font(.system(size: 14, weight: .bold)).foregroundStyle(.white))
-            Text("파일 셸프").font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
-            if !store.isEmpty {
-                Text("\(store.count)")
-                    .font(.system(size: 12, weight: .bold)).foregroundStyle(.white.opacity(0.9))
-                    .padding(.horizontal, 8).padding(.vertical, 2)
-                    .background(Capsule().fill(Color.white.opacity(0.16)))
-            }
-            Spacer(minLength: 0)
-            if !store.isEmpty {
-                Button { store.clear() } label: {
-                    Text("전체 지우기").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white.opacity(0.85))
+            HStack(spacing: 8) {
+                Text("파일 셸프").font(.system(size: 14, weight: .bold)).foregroundStyle(.white)
+                if !store.isEmpty {
+                    Text("\(store.count)")
+                        .font(.system(size: 11, weight: .bold)).foregroundStyle(.white.opacity(0.9))
+                        .padding(.horizontal, 7).padding(.vertical, 1)
+                        .background(Capsule().fill(Color.white.opacity(0.16)))
                 }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, 16)
-        .frame(height: 46)
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        if store.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "tray.and.arrow.down").font(.system(size: 26)).foregroundStyle(.white.opacity(0.55))
-                Text("여기에 파일을 모아 두세요").font(.system(size: 14, weight: .semibold)).foregroundStyle(.white.opacity(0.85))
-                Text("Finder에서 드래그해 담고, 필요한 곳으로 다시 끌어다 놓으세요").font(.system(size: 11)).foregroundStyle(.white.opacity(0.5))
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(store.items) { item in
-                        ShelfCardView(item: item, accent: accent, onRemove: { store.remove(item) }, onDragStart: { markDragging() })
-                    }
-                }
-                .padding(.horizontal, 12).padding(.vertical, 10)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-    }
-
-    // MARK: 접힘/펼침 제어
-
-    private func expand() {
-        collapseTask?.cancel()
-        if !presentation.expanded {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { presentation.expanded = true }
-        }
-    }
-
-    private func scheduleCollapse() {
-        collapseTask?.cancel()
-        collapseTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            guard !Task.isCancelled else { return }
-            if !hovering && !targeted && !presentation.dragging {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { presentation.expanded = false }
-            }
-        }
-    }
-
-    /// 카드 드래그 시작 → 잠시 접힘 방지 + 드래그 후 사라진 원본 정리.
-    private func markDragging() {
-        presentation.dragging = true
-        dragResetTask?.cancel()
-        dragResetTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
-            presentation.dragging = false
-            store.pruneMissing()
-        }
-    }
-
-    private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
-        let group = DispatchGroup()
-        let lock = NSLock()
-        var urls: [URL] = []
-        for provider in providers where provider.canLoadObject(ofClass: URL.self) {
-            group.enter()
-            _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                if let url, url.isFileURL { lock.lock(); urls.append(url); lock.unlock() }
-                group.leave()
-            }
-        }
-        group.notify(queue: .main) { store.add(urls) }
-        return true
-    }
-}
-
-/// 셸프 카드(썸네일 + 이름). 개별 드래그로 꺼내기, 호버 시 제거 버튼.
-private struct ShelfCardView: View {
-    let item: ShelfItem
-    let accent: Color
-    let onRemove: () -> Void
-    let onDragStart: () -> Void
-
-    @State private var thumb: NSImage?
-    @State private var hovering = false
-
-    var body: some View {
-        VStack(spacing: 6) {
-            ZStack(alignment: .topTrailing) {
-                thumbnail
-                    .frame(width: 54, height: 54)
-                    .background(RoundedRectangle(cornerRadius: 9).fill(Color.white.opacity(0.06)))
-                    .clipShape(RoundedRectangle(cornerRadius: 9))
-                if hovering {
-                    Button(action: onRemove) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 15)).symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, .black.opacity(0.55))
-                    }
-                    .buttonStyle(.plain)
-                    .offset(x: 6, y: -6)
+                Spacer(minLength: 0)
+                if !store.isEmpty {
+                    Button { store.clear() } label: {
+                        Text("전체 지우기").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.8))
+                    }.buttonStyle(.plain)
                 }
             }
-            Text(item.name)
-                .font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.9))
-                .lineLimit(1).truncationMode(.middle).frame(width: 78)
-        }
-        .padding(7)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(hovering ? 0.10 : 0.04)))
-        .onHover { hovering = $0 }
-        .onDrag {
-            onDragStart()
-            return NSItemProvider(object: item.url as NSURL)
-        }
-        .task(id: item.url) { await loadThumbnail() }
-    }
+            .padding(.horizontal, 14).frame(height: 40)
 
-    @ViewBuilder
-    private var thumbnail: some View {
-        if let thumb {
-            Image(nsImage: thumb).resizable().aspectRatio(contentMode: .fit).padding(3)
-        } else {
-            Image(nsImage: NSWorkspace.shared.icon(forFile: item.url.path)).resizable().aspectRatio(contentMode: .fit).padding(6)
-        }
-    }
+            Divider().overlay(Color.white.opacity(0.10))
 
-    private func loadThumbnail() async {
-        let request = QLThumbnailGenerator.Request(
-            fileAt: item.url, size: CGSize(width: 108, height: 108), scale: 2, representationTypes: .thumbnail
-        )
-        if let rep = try? await QLThumbnailGenerator.shared.generateBestRepresentation(for: request) {
-            thumb = rep.nsImage
+            if store.isEmpty {
+                VStack(spacing: 6) {
+                    Image(systemName: "tray.and.arrow.down").font(.system(size: 24)).foregroundStyle(.white.opacity(0.5))
+                    Text("여기에 파일을 모아 두세요").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white.opacity(0.8))
+                    Text("Finder에서 끌어와 담고, 필요한 곳으로 다시 끌어다 놓으세요").font(.system(size: 10)).foregroundStyle(.white.opacity(0.45))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ShelfCollectionView(
+                    items: store.items,
+                    onRemove: { store.remove($0) },
+                    onMovedOut: { store.remove($0) },
+                    onDragSession: onDragSession
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
+        .frame(width: Self.trayWidth)
     }
 }
