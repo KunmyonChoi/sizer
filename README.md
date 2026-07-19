@@ -70,18 +70,18 @@ Xcode를 이미 한 번 실행해 구성요소 설치·라이선스 동의까지
 
 ```bash
 brew install KunmyonChoi/tap/sizer
+sizer
 ```
 
 소스에서 **로컬 빌드**되므로 Apple 개발자 등록/공증 없이도 **Gatekeeper 경고 없이** 설치됩니다
-(빌드에 Xcode, 변환에 ffmpeg가 필요하며 ffmpeg는 자동 설치됩니다). 설치 후 메뉴바 앱을
-응용 프로그램에 연결·실행:
+(빌드에 Xcode, 변환에 ffmpeg가 필요하며 ffmpeg는 자동 설치됩니다).
 
-```bash
-ln -sfn "$(brew --prefix)/opt/sizer/Sizer.app" /Applications/Sizer.app
-open -a Sizer
-```
+설치 후 **`sizer` 명령으로 실행**합니다. 이 명령은 앱을 실행하면서 **최초 1회 `/Applications`(권한이 없으면
+`~/Applications`)에 `Sizer.app` 링크를 자동 생성**하므로, 이후에는 Spotlight·런치패드나 `open -a Sizer`로도
+열 수 있습니다. 실행되면 **메뉴바에 아이콘**이 나타납니다(Dock 아이콘 없음, `LSUIElement`).
 
-최신 개발 버전: `brew install --HEAD KunmyonChoi/tap/sizer`
+- 이미 설치돼 있다면 최신으로 업데이트: `brew upgrade sizer`
+- 최신 개발 버전: `brew install --HEAD KunmyonChoi/tap/sizer`
 
 ### 소스에서 직접 빌드
 
