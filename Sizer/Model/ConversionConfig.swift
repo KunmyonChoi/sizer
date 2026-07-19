@@ -17,8 +17,13 @@ struct ConversionConfig {
     var outputExt: String = ".mp4"
     var outputContainer: String = "mp4"
 
-    var trimStill: Bool
-    var trimOptions: TrimOptions
+    // 정지/저모션 구간 처리
+    var stillMode: StillMode
+    var trimOptions: TrimOptions      // 감지(freeze) 파라미터 — trim/ff 공용
+    var ffSpeed: Int = 4              // 빨리감기 배속(2/4/8)
+    var ffMinDuration: Double = 2.0   // 이 길이 이상 저모션 구간만 배속
+    var ffMuteAudio: Bool = true      // 배속 구간 오디오 음소거
+    var ffBadge: Bool = true          // »N× 배지 표시
 
     // 이미지(캡처) 변환
     var imageEnabled: Bool

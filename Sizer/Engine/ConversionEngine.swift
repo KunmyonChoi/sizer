@@ -39,32 +39,56 @@ enum ConversionEngine {
         let hasAudio = Probe.hasAudio(src)
         let duration = Probe.duration(src)
 
-        // 움직임 없는 구간 계획
-        var keepSegments: [Segment]? = nil
-        var removed = 0.0
-        if config.trimStill && duration > 0 {
+        // 정지/저모션 구간 계획(모드별)
+        var speedSegments: [SpeedSegment]? = nil
+        var stillNote = ""
+        if config.stillMode != .off && duration > 0 {
             let freezes = FreezeDetector.detectFreezes(url: src, duration: duration, options: config.trimOptions)
             if !freezes.isEmpty {
-                if let segments = SegmentPlanner.plan(freezes: freezes, duration: duration,
+                switch config.stillMode {
+                case .trim:
+                    if let keep = SegmentPlanner.plan(freezes: freezes, duration: duration,
                                                       options: config.trimOptions, sceneChanges: []) {
-                    keepSegments = segments
-                    let kept = segments.totalDuration
-                    removed = duration - kept
-                    AppLogger.info(String(format: "정지 구간 %d곳, %.1fs 제거 → %.1fs 편집 (%@)",
-                                          freezes.count, removed, kept, name))
-                } else {
-                    AppLogger.warn("움직임 구간이 거의 없거나 제거량이 미미하여 트리밍 생략: \(name)")
+                        speedSegments = keep.map { SpeedSegment($0.start, $0.end, speed: 1) }
+                        let removed = duration - keep.totalDuration
+                        stillNote = "정지 \(Int(removed))s 제거"
+                        AppLogger.info(String(format: "정지 구간 %d곳, %.1fs 제거 (%@)", freezes.count, removed, name))
+                    } else {
+                        AppLogger.warn("움직임 구간이 거의 없거나 제거량이 미미하여 트리밍 생략: \(name)")
+                    }
+                case .fastForward:
+                    if let segs = SegmentPlanner.planFastForward(freezes: freezes, duration: duration,
+                                                                 options: config.trimOptions,
+                                                                 speed: Double(config.ffSpeed),
+                                                                 minFF: config.ffMinDuration) {
+                        speedSegments = segs
+                        let outDur = segs.totalOutputDuration
+                        stillNote = "\(config.ffSpeed)× 빨리감기"
+                        AppLogger.info(String(format: "저모션 구간 %d× 빨리감기: %.1fs → %.1fs (%@)",
+                                              config.ffSpeed, duration, outDur, name))
+                    } else {
+                        AppLogger.warn("저모션 구간이 거의 없어 빨리감기 생략: \(name)")
+                    }
+                case .off: break
                 }
             }
         }
 
+        // FF 배속 배지(»N×) PNG — drawtext 미지원 빌드 대응(overlay 합성)
+        var badgeURL: URL? = nil
+        if config.stillMode == .fastForward, config.ffBadge,
+           speedSegments?.contains(where: { $0.isFast }) == true {
+            badgeURL = BadgeRenderer.render(speed: config.ffSpeed)
+        }
+
         AppLogger.info("변환 시작: \(name) (\(humanSize(origSize)))")
         let args = FilterGraphBuilder.build(src: src, dst: tmp, config: config,
-                                            keepSegments: keepSegments, hasAudio: hasAudio)
+                                            segments: speedSegments, hasAudio: hasAudio, badgeURL: badgeURL)
 
         let start = Date()
         let result = FFmpeg.run(ffmpeg, args)
         let elapsed = Date().timeIntervalSince(start)
+        if let badgeURL { try? fm.removeItem(at: badgeURL) }
 
         if !result.succeeded || !fm.fileExists(atPath: tmp.path) {
             try? fm.removeItem(at: tmp)
@@ -90,7 +114,7 @@ enum ConversionEngine {
         let newSize = fileSize(dst)
         let saved = origSize > 0 ? 100.0 * (1.0 - Double(newSize) / Double(origSize)) : 0
         var detail = "\(humanSize(origSize)) → \(humanSize(newSize)) (\(Int(saved))% 절감)"
-        if keepSegments != nil { detail += " · 정지 \(Int(removed))s 제거" }
+        if !stillNote.isEmpty { detail += " · \(stillNote)" }
 
         AppLogger.info(String(format: "변환 완료: %@ → %@ (%@, %.1fs)", name, dst.lastPathComponent, detail, elapsed))
         moveOriginal(src, to: config.processedFolder, stampDate: true)

@@ -94,4 +94,49 @@ enum SegmentPlanner {
 
         return keep3
     }
+
+    // MARK: 빨리감기(FF) 타임라인
+
+    /// [0,duration]을 움직임(1×)/저모션(speed×) 세그먼트로 분할. minFF 이상 정지 구간만 배속.
+    /// 배속으로 줄어드는 양이 미미하면 nil(원본).
+    static func planFastForward(freezes: [Segment], duration: Double, options: TrimOptions,
+                                speed: Double, minFF: Double) -> [SpeedSegment]? {
+        guard duration > 0, speed > 1, !freezes.isEmpty else { return nil }
+
+        let zones = freezes
+            .map { Segment(max(0, $0.start), min(duration, $0.end)) }
+            .filter { $0.duration >= minFF }
+            .sorted { $0.start < $1.start }
+        guard !zones.isEmpty else { return nil }
+
+        var segs: [SpeedSegment] = []
+        var cursor = 0.0
+        for zone in zones {
+            let zStart = max(cursor, zone.start)
+            if zStart > cursor { segs.append(SpeedSegment(cursor, zStart, speed: 1)) }   // 움직임
+            if zone.end > zStart { segs.append(SpeedSegment(zStart, zone.end, speed: speed)) } // 배속
+            cursor = max(cursor, zone.end)
+        }
+        if duration - cursor > 0.05 { segs.append(SpeedSegment(cursor, duration, speed: 1)) }
+
+        let merged = mergeSameSpeed(segs)
+        guard merged.contains(where: { $0.isFast }) else { return nil }
+        // 안전장치: 줄어드는 양이 0.5s 미만이면 생략
+        guard duration - merged.totalOutputDuration >= 0.5 else { return nil }
+        return merged
+    }
+
+    /// 인접한 같은 배속 세그먼트 병합 + 0에 가까운 조각 제거.
+    static func mergeSameSpeed(_ segments: [SpeedSegment]) -> [SpeedSegment] {
+        var out: [SpeedSegment] = []
+        for seg in segments where seg.duration > 0.001 {
+            if var last = out.last, abs(last.speed - seg.speed) < 0.001, abs(seg.start - last.end) < 0.01 {
+                last.end = seg.end
+                out[out.count - 1] = last
+            } else {
+                out.append(seg)
+            }
+        }
+        return out
+    }
 }

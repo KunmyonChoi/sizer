@@ -42,7 +42,7 @@ final class ConversionEngineIntegrationTests: XCTestCase {
             dropFolder: drop, outputFolder: out, processedFolder: processed, failedFolder: failed,
             codec: .h264, crf: 28, preset: "veryfast", maxLongEdge: 1920,
             audioBitrate: "128k", outputSuffix: "_sns",
-            trimStill: true, trimOptions: opts,
+            stillMode: .trim, trimOptions: opts,
             imageEnabled: false, imageFormat: .avif, imageQuality: 0.8, imageMaxLongEdge: 0,
             notificationsEnabled: false
         )
@@ -98,7 +98,7 @@ final class ConversionEngineIntegrationTests: XCTestCase {
             dropFolder: drop, outputFolder: out, processedFolder: processed, failedFolder: failed,
             codec: .h264, crf: 28, preset: "veryfast", maxLongEdge: 1280,
             audioBitrate: "128k", outputSuffix: "_sns",
-            trimStill: true, trimOptions: TrimOptions(),
+            stillMode: .trim, trimOptions: TrimOptions(),
             imageEnabled: false, imageFormat: .avif, imageQuality: 0.8, imageMaxLongEdge: 0,
             notificationsEnabled: false
         )

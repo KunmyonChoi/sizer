@@ -4,91 +4,83 @@ struct TrimmingSettingsView: View {
     @EnvironmentObject var settings: AppSettings
 
     private var sensitivityBinding: Binding<SensitivityPreset> {
-        Binding(
-            get: { settings.sensitivity },
-            set: { settings.applySensitivityPreset($0) }
-        )
+        Binding(get: { settings.sensitivity }, set: { settings.applySensitivityPreset($0) })
     }
 
     var body: some View {
         Form {
-            Toggle("움직임 없는 구간 자동 제거", isOn: $settings.trimStill)
-
-            Group {
-                Picker("민감도 프리셋", selection: sensitivityBinding) {
-                    ForEach(SensitivityPreset.allCases) { preset in
-                        Text(preset.label).tag(preset)
-                    }
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack {
-                        Text("정지 판단 민감도(dB)")
-                        Slider(value: $settings.stillNoiseDb, in: -70...(-30), step: 1)
-                        Text("\(Int(settings.stillNoiseDb))dB")
-                            .monospacedDigit()
-                    }
-                    Text("0에 가까울수록 공격적")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                HStack {
-                    Text("최소 정지 길이(초)")
-                    Slider(value: $settings.stillMinDuration, in: 0.5...5, step: 0.5)
-                    Text(String(format: "%.1f", settings.stillMinDuration))
-                        .monospacedDigit()
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack {
-                        Text("컷 병합 간격(초)")
-                        Slider(value: $settings.mergeGapMax, in: 0...2, step: 0.1)
-                        Text(String(format: "%.1f", settings.mergeGapMax))
-                            .monospacedDigit()
-                    }
-                    Text("이 이하의 짧은 정지는 잘라내지 않고 이어붙임")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack {
-                        Text("최소 유지 길이(초)")
-                        Slider(value: $settings.minKeep, in: 0...2, step: 0.1)
-                        Text(String(format: "%.1f", settings.minKeep))
-                            .monospacedDigit()
-                    }
-                    Text("이보다 짧은 조각은 버림")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                HStack {
-                    Text("컷 여유(패딩, 초)")
-                    Slider(value: $settings.pad, in: 0...1, step: 0.05)
-                    Text(String(format: "%.2f", settings.pad))
-                        .monospacedDigit()
-                }
-
-                Toggle("부드러운 전환(오디오 페이드 증가)", isOn: $settings.smoothTransitions)
-
-                Section("고급") {
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack {
-                            Text("안전장치: 최소 유지 비율")
-                            Slider(value: $settings.minKeepRatio, in: 0...0.2, step: 0.01)
-                            Text(String(format: "%.2f", settings.minKeepRatio))
-                                .monospacedDigit()
-                        }
-                        Text("잘라낸 뒤 남는 길이가 원본의 이 비율 미만이면 트리밍 취소")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+            Picker("정지 구간 처리", selection: $settings.stillMode) {
+                ForEach(StillMode.allCases) { mode in
+                    Text(mode.isBeta ? "\(mode.label) · Beta" : mode.label).tag(mode)
                 }
             }
-            .disabled(!settings.trimStill)
+            Text(modeHelp)
+                .font(.caption).foregroundStyle(.secondary)
+
+            if settings.stillMode != .off {
+                Section("감지") {
+                    Picker("민감도 프리셋", selection: sensitivityBinding) {
+                        ForEach(SensitivityPreset.allCases) { Text($0.label).tag($0) }
+                    }
+                    labeledSlider("정지 판단 민감도(dB)", $settings.stillNoiseDb, -70...(-30), 1,
+                                  fmt: { "\(Int($0))dB" }, hint: "0에 가까울수록 공격적")
+                    labeledSlider("최소 정지 길이(초)", $settings.stillMinDuration, 0.5...5, 0.5,
+                                  fmt: { String(format: "%.1f", $0) })
+                }
+            }
+
+            if settings.stillMode == .trim {
+                Section("잘라내기") {
+                    labeledSlider("컷 병합 간격(초)", $settings.mergeGapMax, 0...2, 0.1,
+                                  fmt: { String(format: "%.1f", $0) }, hint: "이 이하의 짧은 정지는 이어붙임")
+                    labeledSlider("최소 유지 길이(초)", $settings.minKeep, 0...2, 0.1,
+                                  fmt: { String(format: "%.1f", $0) }, hint: "이보다 짧은 조각은 버림")
+                    labeledSlider("컷 여유(패딩, 초)", $settings.pad, 0...1, 0.05,
+                                  fmt: { String(format: "%.2f", $0) })
+                    Toggle("부드러운 전환(오디오 페이드 증가)", isOn: $settings.smoothTransitions)
+                    labeledSlider("안전장치: 최소 유지 비율", $settings.minKeepRatio, 0...0.2, 0.01,
+                                  fmt: { String(format: "%.2f", $0) },
+                                  hint: "남는 길이가 원본의 이 비율 미만이면 취소")
+                }
+            }
+
+            if settings.stillMode == .fastForward {
+                Section("빨리감기 (Beta)") {
+                    Text("저모션(대기·진행바 등) 구간을 잘라내지 않고 배속 재생합니다. 감지 정확도를 개선 중인 Beta 기능입니다.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Picker("배속", selection: $settings.ffSpeed) {
+                        Text("2×").tag(2); Text("4×").tag(4); Text("8×").tag(8)
+                    }
+                    labeledSlider("최소 배속 구간 길이(초)", $settings.ffMinDuration, 1...8, 0.5,
+                                  fmt: { String(format: "%.1f", $0) }, hint: "이 길이 이상 저모션 구간만 배속")
+                    Toggle("배속 구간 오디오 음소거", isOn: $settings.ffMuteAudio)
+                    Toggle("배속 배지 표시(»N×)", isOn: $settings.ffBadge)
+                }
+            }
         }
         .formStyle(.grouped)
+    }
+
+    private var modeHelp: String {
+        switch settings.stillMode {
+        case .off: return "정지/저모션 구간을 그대로 둡니다."
+        case .trim: return "정지 구간을 잘라내 이어붙입니다."
+        case .fastForward: return "저모션 구간을 배속 재생해 지루함을 줄이되 맥락은 유지합니다."
+        }
+    }
+
+    @ViewBuilder
+    private func labeledSlider(_ title: String, _ value: Binding<Double>, _ range: ClosedRange<Double>,
+                              _ step: Double, fmt: @escaping (Double) -> String, hint: String? = nil) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Text(title)
+                Slider(value: value, in: range, step: step)
+                Text(fmt(value.wrappedValue)).monospacedDigit().frame(width: 52, alignment: .trailing)
+            }
+            if let hint {
+                Text(hint).font(.caption).foregroundStyle(.secondary)
+            }
+        }
     }
 }

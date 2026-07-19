@@ -33,8 +33,12 @@ final class AppSettings: ObservableObject {
     @Published var audioBitrate: String { didSet { save(audioBitrate, .audioBitrate) } }
     @Published var outputSuffix: String { didSet { save(outputSuffix, .outputSuffix) } }
 
-    // MARK: 트리밍
-    @Published var trimStill: Bool { didSet { save(trimStill, .trimStill) } }
+    // MARK: 정지/저모션 구간 처리
+    @Published var stillModeRaw: String { didSet { save(stillModeRaw, .stillMode) } }
+    @Published var ffSpeed: Int { didSet { save(ffSpeed, .ffSpeed) } }
+    @Published var ffMinDuration: Double { didSet { save(ffMinDuration, .ffMinDuration) } }
+    @Published var ffMuteAudio: Bool { didSet { save(ffMuteAudio, .ffMuteAudio) } }
+    @Published var ffBadge: Bool { didSet { save(ffBadge, .ffBadge) } }
     @Published var sensitivityRaw: String { didSet { save(sensitivityRaw, .sensitivity) } }
     @Published var stillNoiseDb: Double { didSet { save(stillNoiseDb, .stillNoiseDb) } }
     @Published var stillMinDuration: Double { didSet { save(stillMinDuration, .stillMinDuration) } }
@@ -65,6 +69,11 @@ final class AppSettings: ObservableObject {
     var imageFormat: ImageFormat {
         get { ImageFormat(rawValue: imageFormatRaw) ?? .avif }
         set { imageFormatRaw = newValue.rawValue }
+    }
+
+    var stillMode: StillMode {
+        get { StillMode(rawValue: stillModeRaw) ?? .off }
+        set { stillModeRaw = newValue.rawValue }
     }
 
     var dropFolderURL: URL { URL(fileURLWithPath: dropFolderPath, isDirectory: true) }
@@ -98,8 +107,12 @@ final class AppSettings: ObservableObject {
             maxLongEdge: maxLongEdge,
             audioBitrate: audioBitrate,
             outputSuffix: outputSuffix,
-            trimStill: trimStill,
+            stillMode: stillMode,
             trimOptions: trimOptions,
+            ffSpeed: ffSpeed,
+            ffMinDuration: ffMinDuration,
+            ffMuteAudio: ffMuteAudio,
+            ffBadge: ffBadge,
             imageEnabled: imageConversionEnabled,
             imageFormat: imageFormat,
             imageQuality: imageQuality,
@@ -141,7 +154,18 @@ final class AppSettings: ObservableObject {
         audioBitrate = defaults.string(forKey: Key.audioBitrate.rawValue) ?? "128k"
         outputSuffix = defaults.string(forKey: Key.outputSuffix.rawValue) ?? "_resize"
 
-        trimStill = defaults.object(forKey: Key.trimStill.rawValue) as? Bool ?? true
+        // stillMode: 신규 기본 '끔'. 기존 trimStill 값이 있으면 마이그레이션(true→잘라내기, false→끔).
+        if let saved = defaults.string(forKey: Key.stillMode.rawValue) {
+            stillModeRaw = saved
+        } else if let legacy = defaults.object(forKey: Key.trimStill.rawValue) as? Bool {
+            stillModeRaw = legacy ? StillMode.trim.rawValue : StillMode.off.rawValue
+        } else {
+            stillModeRaw = StillMode.off.rawValue
+        }
+        ffSpeed = defaults.object(forKey: Key.ffSpeed.rawValue) as? Int ?? 4
+        ffMinDuration = defaults.object(forKey: Key.ffMinDuration.rawValue) as? Double ?? 2.0
+        ffMuteAudio = defaults.object(forKey: Key.ffMuteAudio.rawValue) as? Bool ?? true
+        ffBadge = defaults.object(forKey: Key.ffBadge.rawValue) as? Bool ?? true
         sensitivityRaw = defaults.string(forKey: Key.sensitivity.rawValue) ?? SensitivityPreset.balanced.rawValue
         stillNoiseDb = defaults.object(forKey: Key.stillNoiseDb.rawValue) as? Double ?? -50.0
         stillMinDuration = defaults.object(forKey: Key.stillMinDuration.rawValue) as? Double ?? 2.0
@@ -181,7 +205,9 @@ final class AppSettings: ObservableObject {
         case launchAtLogin, notificationsEnabled
         case autoCleanProcessed, processedRetentionDays
         case videoCodec, crf, preset, maxLongEdge, audioBitrate, outputSuffix
-        case trimStill, sensitivity, stillNoiseDb, stillMinDuration
+        case trimStill   // 레거시(마이그레이션용)
+        case stillMode, ffSpeed, ffMinDuration, ffMuteAudio, ffBadge
+        case sensitivity, stillNoiseDb, stillMinDuration
         case mergeGapMax, minKeep, pad, smoothTransitions, minKeepRatio
         case imageEnabled, imageFormat, imageQuality, imageMaxLongEdge
         case dropTargetShown, shelfShown

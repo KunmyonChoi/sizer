@@ -11,7 +11,7 @@ final class ImageConversionTests: XCTestCase {
             dropFolder: drop, outputFolder: out, processedFolder: processed, failedFolder: failed,
             codec: .h264, crf: 26, preset: "veryfast", maxLongEdge: 1920,
             audioBitrate: "128k", outputSuffix: "_resize",
-            trimStill: false, trimOptions: TrimOptions(),
+            stillMode: .off, trimOptions: TrimOptions(),
             imageEnabled: true, imageFormat: format, imageQuality: quality, imageMaxLongEdge: maxEdge,
             notificationsEnabled: false
         )
