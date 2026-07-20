@@ -91,8 +91,8 @@ final class ShelfController {
         let catcher = ShelfDragCatchView(frame: NSRect(x: 0, y: 0, width: handleW, height: height))
         catcher.autoresizingMask = [.width, .height]
         catcher.addSubview(host)
-        catcher.onDragEntered = { [weak self] p in self?.expand(); self?.updateZone(p) }
-        catcher.onDragMoved = { [weak self] p in self?.updateZone(p) }
+        catcher.onExpand = { [weak self] in self?.expand() }
+        catcher.onDragActivity = { [weak self] urls, p in self?.evaluateDrag(urls, at: p) ?? true }
         catcher.onDragExited = { [weak self] in
             self?.dropState.setZone(nil)
             self?.scheduleCollapse()
@@ -110,8 +110,19 @@ final class ShelfController {
                          integrated: showConvertZone, expanded: expanded)
     }
 
-    private func updateZone(_ p: NSPoint) {
-        dropState.setZone(resolveZone(p))
+    /// 드래그 중 존/거부 상태를 갱신하고, 이 지점에서 드롭을 수용할지 반환(커서 표시 제어).
+    /// 변환존 위인데 변환 가능한 파일이 하나도 없으면 거부(.none) → 놓기 불가 커서.
+    private func evaluateDrag(_ urls: [URL], at p: NSPoint) -> Bool {
+        switch resolveZone(p) {
+        case .convert:
+            let supported = DropIngest.supportedURLs(urls, imageEnabled: coordinator.settings.imageConversionEnabled)
+            let acceptable = !supported.isEmpty
+            dropState.setZone(.convert, reject: !acceptable)
+            return acceptable
+        case .hold:
+            dropState.setZone(.hold, reject: false)   // 보관은 모든 파일 수용
+            return true
+        }
     }
 
     private func handleDrop(_ urls: [URL], at p: NSPoint) {
@@ -120,7 +131,7 @@ final class ShelfController {
         switch resolveZone(p) {
         case .convert:
             let n = coordinator.ingest(urls: files)   // 변환 큐로(구 드롭 타겟과 동일 경로)
-            if n > 0 { dropState.flashConvert(n) } else { dropState.flashReject() }   // C2
+            if n > 0 { dropState.flashConvert(n) } else { dropState.flashReject() }   // C2(방어)
             scheduleCollapse(delay: 1.4)
         case .hold:
             store.add(files)
@@ -266,12 +277,14 @@ final class ShelfController {
     }
 }
 
-/// 접힌 탭/펼친 트레이 위로 오는 파일 드래그를 받는 뷰(펼침 트리거 + 위치별 드롭 라우팅).
+/// 접힌 탭/펼친 트레이 위로 오는 파일 드래그를 받는 뷰(펼침 트리거 + 위치별 존 판정 + 수용 여부).
 final class ShelfDragCatchView: NSView {
-    var onDropAt: (([URL], NSPoint) -> Void)?
-    var onDragEntered: ((NSPoint) -> Void)?
-    var onDragMoved: ((NSPoint) -> Void)?
+    var onExpand: (() -> Void)?
+    var onDragActivity: (([URL], NSPoint) -> Bool)?   // 존/거부 갱신 + 수용 여부(true=.copy)
     var onDragExited: (() -> Void)?
+    var onDropAt: (([URL], NSPoint) -> Void)?
+
+    private var draggedURLs: [URL] = []
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -287,22 +300,36 @@ final class ShelfDragCatchView: NSView {
         convert(sender.draggingLocation, from: nil)
     }
 
+    private func readURLs(_ sender: NSDraggingInfo) -> [URL] {
+        (sender.draggingPasteboard.readObjects(
+            forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]
+        ) as? [URL] ?? []).filter { $0.isFileURL }
+    }
+
+    private func operation(_ sender: NSDraggingInfo) -> NSDragOperation {
+        let accepted = onDragActivity?(draggedURLs, localPoint(sender)) ?? true
+        return accepted ? .copy : []   // []=none → 놓기 불가 커서
+    }
+
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        onDragEntered?(localPoint(sender))
-        return .copy
+        draggedURLs = readURLs(sender)
+        onExpand?()
+        return operation(sender)
     }
     override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
-        onDragMoved?(localPoint(sender))
-        return .copy
+        operation(sender)
     }
-    override func draggingExited(_ sender: NSDraggingInfo?) { onDragExited?() }
+    override func draggingExited(_ sender: NSDraggingInfo?) {
+        draggedURLs = []
+        onDragExited?()
+    }
+    // 수용 불가(.none) 지점에서 놓으면 이 메서드들이 호출되지 않아 드롭이 무시된다.
     override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool { true }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        let objs = sender.draggingPasteboard.readObjects(
-            forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]
-        ) as? [URL] ?? []
-        onDropAt?(objs.filter { $0.isFileURL }, localPoint(sender))
+        let urls = draggedURLs.isEmpty ? readURLs(sender) : draggedURLs
+        onDropAt?(urls, localPoint(sender))
+        draggedURLs = []
         return true
     }
 }

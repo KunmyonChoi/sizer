@@ -86,13 +86,17 @@ enum ShelfDropZone: Equatable {
 @MainActor
 final class ShelfDropState: ObservableObject {
     @Published var activeZone: ShelfDropZone?   // 현재 강조 중인 존(C1/C3)
+    @Published var convertRejected = false      // 변환존 위인데 변환 불가 형식(드래그 중, C2)
     @Published var convertFlash: Int?           // 변환 시작 성공 카운트(잠깐 표시)
-    @Published var rejectFlash = false          // 변환 불가 형식 거부(C2, 잠깐 표시)
+    @Published var rejectFlash = false          // 변환 불가 형식 거부(드롭 후, 잠깐 표시)
 
     private var flashTask: Task<Void, Never>?
 
-    func setZone(_ zone: ShelfDropZone?) {
+    /// 드래그 중 강조 존과 거부 여부를 갱신. reject는 변환존일 때만 의미.
+    func setZone(_ zone: ShelfDropZone?, reject: Bool = false) {
         if activeZone != zone { activeZone = zone }
+        let rejected = (zone == .convert) && reject
+        if convertRejected != rejected { convertRejected = rejected }
     }
 
     func flashConvert(_ count: Int) {

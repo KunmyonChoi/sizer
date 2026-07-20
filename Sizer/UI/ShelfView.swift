@@ -93,10 +93,37 @@ struct ShelfView: View {
 
     private enum CZState { case idle, active, success(Int), reject }
     private var czState: CZState {
-        if dropState.rejectFlash { return .reject }
+        if convertActive && dropState.convertRejected { return .reject }   // 드래그 중 거부(C2)
+        if dropState.rejectFlash { return .reject }                        // 드롭 후 거부 플래시
         if let n = dropState.convertFlash { return .success(n) }
         if convertActive { return .active }
         return .idle
+    }
+    private var czHighlighted: Bool { if case .idle = czState { return false }; return true }
+    private var czBorderStyle: AnyShapeStyle {
+        switch czState {
+        case .reject: return AnyShapeStyle(Color(hex: 0xF59E0B))
+        case .success: return AnyShapeStyle(Color(hex: 0x22C55E))
+        case .active: return AnyShapeStyle(grad)
+        case .idle: return AnyShapeStyle(Color.white.opacity(0.20))
+        }
+    }
+    private var czFillStyle: AnyShapeStyle {
+        switch czState {
+        case .reject: return AnyShapeStyle(Color(hex: 0xF59E0B).opacity(0.16))
+        case .success: return AnyShapeStyle(Color(hex: 0x22C55E).opacity(0.14))
+        case .active: return AnyShapeStyle(LinearGradient(colors: [Color(hex: 0x0EA5E9).opacity(0.28), Color(hex: 0x8B5CF6).opacity(0.28)],
+                                                          startPoint: .topLeading, endPoint: .bottomTrailing))
+        case .idle: return AnyShapeStyle(Color.white.opacity(0.05))
+        }
+    }
+    private var czGlow: Color {
+        switch czState {
+        case .active: return accent.opacity(0.38)
+        case .reject: return Color(hex: 0xF59E0B).opacity(0.35)
+        case .success: return Color(hex: 0x22C55E).opacity(0.32)
+        case .idle: return .clear
+        }
     }
     private var czTitle: String {
         switch czState {
@@ -116,7 +143,7 @@ struct ShelfView: View {
     }
     private var czIcon: String {
         switch czState {
-        case .reject: return "xmark"
+        case .reject: return "nosign"
         case .success: return "checkmark"
         default: return "tray.and.arrow.down.fill"
         }
@@ -149,24 +176,21 @@ struct ShelfView: View {
         .padding(.horizontal, 18)   // 콘텐츠 ↔ 테두리(아이콘 왼쪽 여백)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(convertActive
-                      ? AnyShapeStyle(LinearGradient(colors: [Color(hex: 0x0EA5E9).opacity(0.28), Color(hex: 0x8B5CF6).opacity(0.28)],
-                                                     startPoint: .topLeading, endPoint: .bottomTrailing))
-                      : AnyShapeStyle(Color.white.opacity(0.05)))
+            RoundedRectangle(cornerRadius: 18, style: .continuous).fill(czFillStyle)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(convertActive ? AnyShapeStyle(grad) : AnyShapeStyle(Color.white.opacity(0.20)),
-                              style: StrokeStyle(lineWidth: convertActive ? 2 : 1.5,
-                                                 dash: convertActive ? [] : [5, 4]))
+                .strokeBorder(czBorderStyle,
+                              style: StrokeStyle(lineWidth: czHighlighted ? 2 : 1.5,
+                                                 dash: czHighlighted ? [] : [5, 4]))
         )
-        .scaleEffect(convertActive ? 1.015 : 1)
-        .shadow(color: convertActive ? accent.opacity(0.38) : .clear, radius: 16)
+        .scaleEffect(czHighlighted ? 1.015 : 1)
+        .shadow(color: czGlow, radius: 16)
         .padding(.horizontal, 14)   // 카드 ↔ 패널 가장자리
         .padding(.top, 14).padding(.bottom, 8)
         .frame(height: Self.convertZoneHeight)
-        .animation(.spring(response: 0.3, dampingFraction: 0.74), value: convertActive)
+        .animation(.spring(response: 0.3, dampingFraction: 0.74), value: dropState.activeZone)
+        .animation(.easeOut(duration: 0.2), value: dropState.convertRejected)
         .animation(.easeOut(duration: 0.2), value: dropState.convertFlash)
         .animation(.easeOut(duration: 0.2), value: dropState.rejectFlash)
     }
