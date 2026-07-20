@@ -20,17 +20,27 @@ struct MenuBarView: View {
 
             menuDivider
 
-            MenuActionRow(
-                title: coordinator.dropTargetVisible ? "드롭 타겟 숨기기" : "드롭 타겟 표시",
-                systemImage: "square.dashed"
-            ) {
-                coordinator.toggleDropTarget()
-            }
-            MenuActionRow(
-                title: coordinator.shelfVisible ? "파일 셸프 숨기기" : "파일 셸프 표시",
-                systemImage: "square.stack.3d.up"
-            ) {
-                coordinator.toggleShelf()
+            if settings.integratedDrop {
+                // 통합 모드: 드롭+보관을 겸하는 단일 패널.
+                MenuActionRow(
+                    title: coordinator.shelfVisible ? "드롭·셸프 패널 숨기기" : "드롭·셸프 패널 표시",
+                    systemImage: "square.stack.3d.up"
+                ) {
+                    coordinator.toggleShelf()
+                }
+            } else {
+                MenuActionRow(
+                    title: coordinator.dropTargetVisible ? "드롭 타겟 숨기기" : "드롭 타겟 표시",
+                    systemImage: "square.dashed"
+                ) {
+                    coordinator.toggleDropTarget()
+                }
+                MenuActionRow(
+                    title: coordinator.shelfVisible ? "파일 셸프 숨기기" : "파일 셸프 표시",
+                    systemImage: "square.stack.3d.up"
+                ) {
+                    coordinator.toggleShelf()
+                }
             }
             MenuActionRow(title: "드롭 폴더 열기", systemImage: "folder") {
                 coordinator.revealDropFolder()

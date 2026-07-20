@@ -1,17 +1,19 @@
 import AppKit
 import SwiftUI
 
-/// 파일 셸프 — 화면 왼쪽 가장자리에 접혀 있다가, 파일 드래그가 접근하거나 마우스를 대면 펼쳐진다.
+/// 통합 파일 셸프 — 화면 왼쪽 가장자리에 접혀 있다가, 파일 드래그가 접근하거나 마우스를 대면 펼쳐진다.
+/// 펼침 상태에서 상단은 변환 드롭존, 하단은 보관 트레이. 드롭 지점(존)에 따라 변환/보관으로 분기한다.
 /// 접힘 상태에서는 마우스가 있는 화면의 왼쪽 가장자리를 따라 이동한다.
 @MainActor
 final class ShelfController {
     let store = ShelfStore()
+    let dropState = ShelfDropState()
 
+    private let coordinator: WatchCoordinator
     private var panel: NSPanel?
     private var hostingView: NSHostingView<ShelfView>?
     private let handleW = ShelfView.handleWidth
     private let expandedW = ShelfView.expandedWidth
-    private let height = ShelfView.height
 
     private var expanded = false
     private var isDraggingOut = false
@@ -23,6 +25,15 @@ final class ShelfController {
     private var collapseWork: DispatchWorkItem?
 
     private let vFracKey = "shelfVerticalFraction"   // 0(하단)~1(상단)
+
+    init(coordinator: WatchCoordinator) {
+        self.coordinator = coordinator
+    }
+
+    /// 통합 모드일 때만 상단 변환 드롭존을 노출한다.
+    private var showConvertZone: Bool { coordinator.settings.integratedDrop }
+    /// 통합 여부에 따른 패널 높이(ShelfView와 일치).
+    private var height: CGFloat { ShelfView.panelHeight(showConvertZone: showConvertZone) }
 
     var isVisible: Bool { panel?.isVisible ?? false }
 
@@ -42,6 +53,18 @@ final class ShelfController {
         panel?.orderOut(nil)
     }
 
+    /// 통합 모드 전환 등으로 뷰를 새 설정으로 다시 만들어야 할 때: 다음 show 시 재생성(보관 내용은 유지).
+    func rebuild() {
+        let wasVisible = isVisible
+        hide()
+        panel?.orderOut(nil)
+        panel = nil
+        hostingView = nil
+        expanded = false
+        dropState.setZone(nil)
+        if wasVisible { show() }
+    }
+
     // MARK: 패널
 
     private func makePanel() -> NSPanel {
@@ -57,9 +80,10 @@ final class ShelfController {
         panel.hidesOnDeactivate = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
-        let host = NSHostingView(rootView: ShelfView(store: store, onDragSession: { [weak self] active in
-            self?.setDraggingOut(active)
-        }))
+        let host = NSHostingView(rootView: ShelfView(
+            store: store, dropState: dropState, showConvertZone: showConvertZone,
+            onDragSession: { [weak self] active in self?.setDraggingOut(active) }
+        ))
         host.frame = NSRect(x: 0, y: 0, width: expandedW, height: height)   // 항상 펼친 크기
         host.appearance = NSAppearance(named: .darkAqua)
         hostingView = host
@@ -67,15 +91,44 @@ final class ShelfController {
         let catcher = ShelfDragCatchView(frame: NSRect(x: 0, y: 0, width: handleW, height: height))
         catcher.autoresizingMask = [.width, .height]
         catcher.addSubview(host)
-        catcher.onDragEntered = { [weak self] in self?.expand() }
-        catcher.onDragExited = { [weak self] in self?.scheduleCollapse() }
-        catcher.onDropURLs = { [weak self] urls in
-            self?.store.add(urls)
-            self?.scheduleCollapse(delay: 0.8)
+        catcher.onDragEntered = { [weak self] p in self?.expand(); self?.updateZone(p) }
+        catcher.onDragMoved = { [weak self] p in self?.updateZone(p) }
+        catcher.onDragExited = { [weak self] in
+            self?.dropState.setZone(nil)
+            self?.scheduleCollapse()
         }
+        catcher.onDropAt = { [weak self] urls, p in self?.handleDrop(urls, at: p) }
         panel.contentView = catcher
         return panel
     }
+
+    // MARK: 드롭 라우팅(존 분기)
+
+    private func resolveZone(_ p: NSPoint) -> ShelfDropZone {
+        ShelfDropZone.at(p, panelHeight: height, handleWidth: handleW,
+                         convertZoneHeight: ShelfView.convertZoneHeight,
+                         integrated: showConvertZone, expanded: expanded)
+    }
+
+    private func updateZone(_ p: NSPoint) {
+        dropState.setZone(resolveZone(p))
+    }
+
+    private func handleDrop(_ urls: [URL], at p: NSPoint) {
+        dropState.setZone(nil)
+        let files = urls.filter { $0.isFileURL }
+        switch resolveZone(p) {
+        case .convert:
+            let n = coordinator.ingest(urls: files)   // 변환 큐로(구 드롭 타겟과 동일 경로)
+            if n > 0 { dropState.flashConvert(n) } else { dropState.flashReject() }   // C2
+            scheduleCollapse(delay: 1.4)
+        case .hold:
+            store.add(files)
+            scheduleCollapse(delay: 0.8)
+        }
+    }
+
+    // MARK: 배치
 
     private func dockPanel(to screen: NSScreen?, expanded: Bool) {
         guard let panel, let screen = screen ?? NSScreen.main else { return }
@@ -131,6 +184,7 @@ final class ShelfController {
             scheduleCollapse(); return
         }
         expanded = false
+        dropState.setZone(nil)
         setPanelWidth(handleW, animate: true)
     }
 
@@ -212,10 +266,11 @@ final class ShelfController {
     }
 }
 
-/// 접힌 탭/펼친 트레이 위로 오는 파일 드래그를 받는 뷰(펼침 트리거 + 드롭 수집).
+/// 접힌 탭/펼친 트레이 위로 오는 파일 드래그를 받는 뷰(펼침 트리거 + 위치별 드롭 라우팅).
 final class ShelfDragCatchView: NSView {
-    var onDropURLs: (([URL]) -> Void)?
-    var onDragEntered: (() -> Void)?
+    var onDropAt: (([URL], NSPoint) -> Void)?
+    var onDragEntered: ((NSPoint) -> Void)?
+    var onDragMoved: ((NSPoint) -> Void)?
     var onDragExited: (() -> Void)?
 
     override init(frame frameRect: NSRect) {
@@ -227,8 +282,17 @@ final class ShelfDragCatchView: NSView {
         registerForDraggedTypes([.fileURL])
     }
 
+    /// 드래그 지점을 뷰 로컬 좌표(origin 좌하단)로 변환.
+    private func localPoint(_ sender: NSDraggingInfo) -> NSPoint {
+        convert(sender.draggingLocation, from: nil)
+    }
+
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        onDragEntered?()
+        onDragEntered?(localPoint(sender))
+        return .copy
+    }
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        onDragMoved?(localPoint(sender))
         return .copy
     }
     override func draggingExited(_ sender: NSDraggingInfo?) { onDragExited?() }
@@ -238,7 +302,7 @@ final class ShelfDragCatchView: NSView {
         let objs = sender.draggingPasteboard.readObjects(
             forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]
         ) as? [URL] ?? []
-        onDropURLs?(objs.filter { $0.isFileURL })
+        onDropAt?(objs.filter { $0.isFileURL }, localPoint(sender))
         return true
     }
 }
