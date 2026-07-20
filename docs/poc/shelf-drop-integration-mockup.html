@@ -1,0 +1,655 @@
+<title>Sizer · 드롭 타겟 × 파일 셸프 통합 목업</title>
+<style>
+  :root {
+    --bg: #f3f3f7;
+    --surface: #ffffff;
+    --surface-2: #fafafc;
+    --text: #17171f;
+    --muted: #6a6a7b;
+    --faint: #9a9aab;
+    --border: #e6e6ee;
+    --border-strong: #d6d6e2;
+    --accent: #6366f1;
+    --accent-ink: #4f46e5;
+    --sky: #0ea5e9;
+    --violet: #8b5cf6;
+    --good: #16a34a;
+    --warn: #d97706;
+    --grad: linear-gradient(135deg, #0ea5e9, #6366f1 55%, #8b5cf6);
+    --stage-1: #201b3a;
+    --stage-2: #10203f;
+    --stage-3: #2a1440;
+    --shadow: 0 1px 2px rgba(20,20,40,.05), 0 8px 24px rgba(20,20,40,.06);
+    --ui: -apple-system, "SF Pro Display", "SF Pro Text", system-ui, "Helvetica Neue", "Pretendard", sans-serif;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d0d13;
+      --surface: #16161e;
+      --surface-2: #1b1b25;
+      --text: #ececf3;
+      --muted: #9a9aac;
+      --faint: #6e6e80;
+      --border: #26262f;
+      --border-strong: #33333f;
+      --accent: #8b8cf7;
+      --accent-ink: #a5a5ff;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f3f3f7; --surface: #fff; --surface-2: #fafafc; --text: #17171f;
+    --muted: #6a6a7b; --faint: #9a9aab; --border: #e6e6ee; --border-strong: #d6d6e2;
+    --accent: #6366f1; --accent-ink: #4f46e5;
+    --shadow: 0 1px 2px rgba(20,20,40,.05), 0 8px 24px rgba(20,20,40,.06);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d0d13; --surface: #16161e; --surface-2: #1b1b25; --text: #ececf3;
+    --muted: #9a9aac; --faint: #6e6e80; --border: #26262f; --border-strong: #33333f;
+    --accent: #8b8cf7; --accent-ink: #a5a5ff;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.4);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: var(--ui); line-height: 1.55;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 40px 24px 72px; }
+
+  /* ---------- header ---------- */
+  header.masthead { margin-bottom: 30px; }
+  .eyebrow {
+    font: 600 12px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent-ink); display: inline-flex; align-items: center; gap: 8px;
+  }
+  .eyebrow .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--grad); }
+  h1 {
+    font-size: clamp(26px, 4vw, 40px); font-weight: 800; letter-spacing: -.02em;
+    line-height: 1.08; margin: 14px 0 10px; text-wrap: balance; max-width: 20ch;
+  }
+  .lede { font-size: 17px; color: var(--muted); max-width: 62ch; margin: 0; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .chip {
+    font: 500 12px/1 var(--mono); color: var(--muted);
+    padding: 6px 10px; border: 1px solid var(--border); border-radius: 999px;
+    background: var(--surface); display: inline-flex; align-items: center; gap: 6px;
+  }
+  .chip b { color: var(--text); font-weight: 700; }
+
+  /* ---------- section scaffolding ---------- */
+  section { margin-top: 46px; }
+  .sec-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 18px; }
+  .sec-num { font: 700 12px/1 var(--mono); color: var(--accent); letter-spacing: .1em; }
+  h2 { font-size: 20px; font-weight: 750; letter-spacing: -.01em; margin: 0; }
+  .sec-head p { margin: 0; color: var(--muted); font-size: 14px; }
+
+  /* ---------- desktop stage ---------- */
+  .stage-card {
+    border: 1px solid var(--border); border-radius: 18px; overflow: hidden;
+    background: var(--surface); box-shadow: var(--shadow);
+  }
+  .stage {
+    position: relative; height: 560px; overflow: hidden;
+    background:
+      radial-gradient(120% 90% at 12% 8%, rgba(139,92,246,.55), transparent 55%),
+      radial-gradient(120% 100% at 92% 100%, rgba(14,165,233,.5), transparent 55%),
+      linear-gradient(140deg, var(--stage-1), var(--stage-2) 55%, var(--stage-3));
+    isolation: isolate;
+  }
+  .menubar {
+    position: absolute; inset: 0 0 auto 0; height: 26px; z-index: 5;
+    background: rgba(10,10,16,.34); backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    display: flex; align-items: center; justify-content: flex-end; gap: 16px;
+    padding: 0 14px; color: rgba(255,255,255,.82);
+    font: 500 12px/1 var(--ui);
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  .menubar .tray-ico {
+    width: 15px; height: 15px; border-radius: 5px; background: var(--grad);
+    display: grid; place-items: center; color: #fff;
+  }
+  .menubar .tray-ico svg { width: 9px; height: 9px; }
+  .menubar time { font-variant-numeric: tabular-nums; }
+
+  /* wallpaper caption to fill the void */
+  .stage-note {
+    position: absolute; left: 50%; top: 54%; transform: translate(-40%, -50%);
+    color: rgba(255,255,255,.20); font: 700 15px/1.5 var(--ui);
+    text-align: center; letter-spacing: .01em; pointer-events: none; user-select: none;
+    max-width: 320px;
+  }
+  .stage-note span { display:block; font-size: 12px; font-weight: 500; margin-top: 6px; color: rgba(255,255,255,.16); }
+
+  /* ---------- the integrated panel ---------- */
+  .panel {
+    position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+    z-index: 10; display: flex; align-items: stretch;
+    height: 340px; width: 486px; max-width: 486px;
+    border-radius: 0 26px 26px 0; overflow: hidden;
+    background: rgba(22,22,32,.52);
+    backdrop-filter: blur(34px) saturate(1.5); -webkit-backdrop-filter: blur(34px) saturate(1.5);
+    border: 1px solid rgba(255,255,255,.14); border-left: none;
+    box-shadow: 0 30px 60px rgba(0,0,0,.42), 0 2px 0 rgba(255,255,255,.05) inset;
+    color: #fff;
+    transition: width .42s cubic-bezier(.22,1,.36,1), height .38s cubic-bezier(.22,1,.36,1);
+  }
+  .panel.collapsed { width: 26px; }
+  .panel.collapsed .tray { opacity: .0; }
+
+  /* handle */
+  .handle {
+    width: 26px; flex: 0 0 26px; padding: 14px 0; gap: 10px;
+    display: flex; flex-direction: column; align-items: center;
+    border-right: 1px solid rgba(255,255,255,.10);
+  }
+  .handle .h-ico {
+    width: 16px; height: 16px; border-radius: 6px; background: var(--grad);
+    display: grid; place-items: center; color: #fff;
+    box-shadow: 0 3px 8px rgba(99,102,241,.5);
+  }
+  .handle .h-ico svg { width: 9px; height: 9px; }
+  .handle .h-chev { color: rgba(255,255,255,.42); }
+  .handle .h-chev svg { width: 12px; height: 12px; display:block; }
+  .handle .spacer { flex: 1; }
+  .handle .h-count {
+    min-width: 19px; height: 19px; padding: 0 5px; border-radius: 999px;
+    background: #6366f1; color: #fff; font: 800 10px/19px var(--ui);
+    text-align: center; font-variant-numeric: tabular-nums;
+  }
+
+  /* tray = the two zones */
+  .tray {
+    width: 460px; flex: 0 0 460px; display: flex; flex-direction: column;
+    transition: opacity .28s ease;
+  }
+
+  /* zone A — convert dropzone */
+  .zoneA { padding: 14px 16px 12px; }
+  .dropzone {
+    display: flex; align-items: center; gap: 13px;
+    padding: 15px 16px; border-radius: 18px;
+    border: 1.5px dashed rgba(255,255,255,.22);
+    background: rgba(255,255,255,.045);
+    transition: transform .3s cubic-bezier(.22,1,.36,1), box-shadow .3s, border-color .3s, background .3s;
+  }
+  .dropzone .dz-badge {
+    width: 42px; height: 42px; flex: 0 0 42px; border-radius: 13px; background: var(--grad);
+    display: grid; place-items: center; color: #fff; box-shadow: 0 6px 16px rgba(99,102,241,.45);
+    transition: background .3s;
+  }
+  .dropzone .dz-badge svg { width: 21px; height: 21px; }
+  .dz-text .t1 { font-size: 15.5px; font-weight: 700; letter-spacing: -.01em; }
+  .dz-text .t2 { font-size: 12px; font-weight: 500; color: rgba(255,255,255,.6); margin-top: 1px; }
+
+  /* zone A active (drag over convert) */
+  .panel[data-mode="convert"] .dropzone {
+    transform: scale(1.035);
+    border-color: transparent;
+    background: linear-gradient(135deg, rgba(14,165,233,.28), rgba(139,92,246,.28));
+    box-shadow: 0 0 0 2px rgba(139,92,246,.8), 0 14px 34px rgba(99,102,241,.5);
+  }
+  .panel[data-mode="convert"] .dz-text .t1::after { content: ""; }
+
+  /* divider + section label */
+  .divider { height: 1px; background: rgba(255,255,255,.10); margin: 2px 16px 0; }
+  .tray-head {
+    display: flex; align-items: center; gap: 8px; padding: 12px 16px 8px;
+  }
+  .tray-head .lbl { font-size: 13.5px; font-weight: 700; }
+  .tray-head .cnt {
+    font: 700 11px/1 var(--ui); color: rgba(255,255,255,.9);
+    padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,.16);
+    font-variant-numeric: tabular-nums;
+  }
+  .tray-head .grow { flex: 1; }
+  .tray-head .clear { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.62); }
+
+  /* zone B — holding tray */
+  .zoneB { flex: 1; min-height: 0; padding: 2px 14px 14px; }
+  .cards {
+    height: 100%; display: grid; grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: 78px; gap: 9px; align-content: start;
+    padding: 6px; border-radius: 14px;
+    transition: background .3s, box-shadow .3s;
+  }
+  .panel[data-mode="hold"] .cards {
+    background: rgba(255,255,255,.06);
+    box-shadow: inset 0 0 0 2px rgba(99,102,241,.7);
+  }
+  .card {
+    border-radius: 11px; background: rgba(255,255,255,.07);
+    border: 1px solid rgba(255,255,255,.08);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+    padding: 6px; text-align: center; position: relative;
+  }
+  .card .thumb {
+    width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center;
+    color: #fff;
+  }
+  .card .thumb svg { width: 17px; height: 17px; }
+  .card.vid .thumb { background: linear-gradient(135deg,#0ea5e9,#6366f1); }
+  .card.img .thumb { background: linear-gradient(135deg,#6366f1,#8b5cf6); }
+  .card.doc .thumb { background: rgba(255,255,255,.14); }
+  .card.new .thumb { background: linear-gradient(135deg,#16a34a,#22c55e); }
+  .card .nm {
+    font-size: 9.5px; font-weight: 500; color: rgba(255,255,255,.72);
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .card.new { box-shadow: 0 0 0 1.5px rgba(34,197,94,.8), 0 8px 18px rgba(22,163,74,.35); animation: pop .5s ease; }
+  .card .flag {
+    position: absolute; top: -6px; right: -6px; font: 800 8px/1 var(--ui);
+    background: #22c55e; color: #05270f; padding: 3px 5px; border-radius: 999px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.3);
+  }
+  @keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  .empty {
+    height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 6px; color: rgba(255,255,255,.55); text-align: center; padding: 12px;
+  }
+  .empty svg { width: 26px; height: 26px; opacity: .6; }
+  .empty .e1 { font-size: 13px; font-weight: 600; color: rgba(255,255,255,.82); }
+  .empty .e2 { font-size: 10.5px; color: rgba(255,255,255,.44); max-width: 30ch; }
+
+  /* drag ghost (cursor + file) */
+  .ghost {
+    position: absolute; z-index: 30; pointer-events: none;
+    display: flex; align-items: center; gap: 7px;
+    opacity: 0; transition: opacity .25s, top .45s cubic-bezier(.22,1,.36,1);
+    left: 300px; top: 150px;
+  }
+  .ghost.show { opacity: 1; animation: bob 1.9s ease-in-out infinite; }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+  .ghost .file {
+    display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px;
+    background: rgba(255,255,255,.92); color: #1a1a22; font: 600 11px/1 var(--ui);
+    box-shadow: 0 10px 24px rgba(0,0,0,.4);
+  }
+  .ghost .file svg { width: 14px; height: 14px; }
+  .ghost .cur { filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
+  .ghost .cur svg { width: 20px; height: 20px; }
+
+  /* ---------- control strip ---------- */
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    padding: 14px 16px; border-top: 1px solid var(--border); background: var(--surface-2);
+  }
+  .controls .ct-label { font: 600 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin-right: 4px; }
+  .seg { display: inline-flex; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 3px; gap: 2px; flex-wrap: wrap; }
+  .seg button {
+    font: 600 13px/1 var(--ui); color: var(--muted); cursor: pointer;
+    background: transparent; border: 0; border-radius: 7px; padding: 8px 12px;
+    display: inline-flex; align-items: center; gap: 7px; transition: background .16s, color .16s;
+  }
+  .seg button .tag { font: 700 9px/1 var(--mono); color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); padding: 3px 4px; border-radius: 4px; }
+  .seg button:hover { color: var(--text); }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+  .seg button[aria-pressed="true"] .tag { color: #fff; background: var(--accent); }
+  .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- states gallery ---------- */
+  .gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  .gcard { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--surface); box-shadow: var(--shadow); }
+  .gcard .frame {
+    height: 200px; position: relative; overflow: hidden;
+    background: linear-gradient(140deg, #241d40, #12213f 60%, #2a1440);
+    display: flex; align-items: center; justify-content: flex-start;
+  }
+  .gcard .cap { padding: 12px 14px 14px; }
+  .gcard .cap .tt { font-size: 13.5px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .gcard .cap .tt .sn { font: 700 9px/1 var(--mono); color: #fff; background: var(--accent); padding: 3px 5px; border-radius: 5px; }
+  .gcard .cap .dd { font-size: 12px; color: var(--muted); margin-top: 5px; }
+
+  /* mini panels inside gallery: scale the real panel down */
+  .mini { transform: scale(.52); transform-origin: left center; }
+
+  /* ---------- scenario + risk ---------- */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px){ .grid2 { grid-template-columns: 1fr; } }
+  .scen { border: 1px solid var(--border); border-radius: 13px; background: var(--surface); padding: 16px 18px; box-shadow: var(--shadow); }
+  .scen h3 { margin: 0 0 6px; font-size: 14.5px; font-weight: 750; display: flex; align-items: center; gap: 9px; }
+  .scen h3 .sn { font: 700 10px/1 var(--mono); color: #fff; background: var(--grad); padding: 4px 6px; border-radius: 6px; letter-spacing: .04em; }
+  .scen p { margin: 0; font-size: 13.5px; color: var(--muted); }
+  .scen .ok { margin-top: 9px; font-size: 12.5px; color: var(--text); display: flex; gap: 7px; align-items: flex-start; }
+  .scen .ok svg { width: 15px; height: 15px; color: var(--good); flex: 0 0 15px; margin-top: 2px; }
+  .scen.ext { border-style: dashed; }
+  .scen.ext h3 .sn { background: linear-gradient(135deg,#16a34a,#22c55e); }
+
+  table.risk { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.risk th, table.risk td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.risk thead th { font: 600 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+  table.risk td.k { font: 700 12px/1 var(--mono); color: var(--warn); white-space: nowrap; }
+  table.risk td .rt { color: var(--text); font-weight: 600; }
+  .risk-wrap { border: 1px solid var(--border); border-radius: 13px; overflow: hidden; background: var(--surface); box-shadow: var(--shadow); }
+
+  footer.foot { margin-top: 52px; padding-top: 22px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+  footer.foot .k { font: 600 12px/1 var(--mono); color: var(--faint); }
+  footer.foot b { color: var(--text); }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 14px 2px 0; font-size: 12.5px; color: var(--muted); }
+  .legend .li { display: inline-flex; align-items: center; gap: 7px; }
+  .legend .sw { width: 13px; height: 13px; border-radius: 4px; }
+  .legend .sw.a { background: var(--grad); }
+  .legend .sw.b { background: rgba(99,102,241,.5); box-shadow: inset 0 0 0 1.5px var(--accent); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+  @media (max-width: 520px){
+    .panel { height: 320px; }
+    .stage { height: 480px; }
+  }
+</style>
+
+<!-- icon sprite -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-convert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3v11"/><path d="M8 11l4 4 4-4"/><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/>
+    </symbol>
+    <symbol id="i-stack" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/>
+    </symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 5l7 7-7 7"/>
+    </symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 6L9 17l-5-5"/>
+    </symbol>
+    <symbol id="i-film" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M3 15h18M8 4v16M16 4v16"/>
+    </symbol>
+    <symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9" r="1.6"/><path d="M21 16l-5-5-8 8"/>
+    </symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>
+    </symbol>
+    <symbol id="i-tray" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 13l3 6h12l3-6"/><path d="M3 13h5l1 2h6l1-2h5"/><path d="M12 3v8M9 8l3 3 3-3"/>
+    </symbol>
+    <symbol id="i-cursor" viewBox="0 0 24 24" fill="#fff" stroke="#1a1a22" stroke-width="1.2" stroke-linejoin="round">
+      <path d="M5 3l14 7-6 1.6L9.5 18z"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header class="masthead">
+    <span class="eyebrow"><span class="dot"></span>Sizer · PoC 목업</span>
+    <h1>드롭 타겟을 파일 셸프에 통합</h1>
+    <p class="lede">떠 있는 창 두 개(변환용 드롭 필 + 이동용 파일 셸프)를 <b>왼쪽 가장자리의 단일 패널</b>로 합칩니다.
+      하나의 표면 안에 <b>변환 드롭존</b>과 <b>보관 트레이</b> 두 존을 두고, 드래그하는 위치에 따라 결과가 달라집니다.</p>
+    <div class="meta">
+      <span class="chip">branch <b>poc/shelf-drop-integration</b></span>
+      <span class="chip">상태 <b>설계·목업</b></span>
+      <span class="chip">렌더 <b>실제 SF Pro · 앱 팔레트</b></span>
+    </div>
+  </header>
+
+  <!-- 1. LIVE STAGE -->
+  <section aria-labelledby="s1">
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <div>
+        <h2 id="s1">통합 화면 — 라이브 시연</h2>
+        <p>아래 버튼으로 상태를 바꿔 보세요. 파일을 끌고 오면 <b>커서가 놓인 존만</b> 강조됩니다.</p>
+      </div>
+    </div>
+
+    <div class="stage-card">
+      <div class="stage" id="stage">
+        <div class="menubar">
+          <span class="tray-ico"><svg><use href="#i-stack"/></svg></span>
+          <span>Sizer</span>
+          <time>14:32</time>
+        </div>
+        <div class="stage-note">사용자의 바탕화면<span>패널은 항상 위, 왼쪽 가장자리에 도킹됩니다</span></div>
+
+        <!-- integrated panel -->
+        <div class="panel" id="panel" data-mode="idle">
+          <div class="handle">
+            <span class="h-ico"><svg><use href="#i-stack"/></svg></span>
+            <span class="h-chev"><svg><use href="#i-chevron"/></svg></span>
+            <span class="spacer"></span>
+            <span class="h-count">4</span>
+          </div>
+          <div class="tray">
+            <!-- zone A -->
+            <div class="zoneA">
+              <div class="dropzone">
+                <div class="dz-badge"><svg><use href="#i-convert"/></svg></div>
+                <div class="dz-text">
+                  <div class="t1" id="dzT1">드롭하여 변환</div>
+                  <div class="t2" id="dzT2">영상·이미지 파일 · Finder에서 끌어오기</div>
+                </div>
+              </div>
+            </div>
+            <div class="divider"></div>
+            <!-- zone B -->
+            <div class="tray-head">
+              <span class="lbl">파일 보관</span>
+              <span class="cnt" id="cnt">4</span>
+              <span class="grow"></span>
+              <span class="clear">전체 지우기</span>
+            </div>
+            <div class="zoneB">
+              <div class="cards" id="cards">
+                <div class="card vid"><div class="thumb"><svg><use href="#i-film"/></svg></div><div class="nm">clip_01.mov</div></div>
+                <div class="card img"><div class="thumb"><svg><use href="#i-image"/></svg></div><div class="nm">shot.png</div></div>
+                <div class="card doc"><div class="thumb"><svg><use href="#i-doc"/></svg></div><div class="nm">notes.pdf</div></div>
+                <div class="card vid"><div class="thumb"><svg><use href="#i-film"/></svg></div><div class="nm">rec_2.mp4</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- drag ghost -->
+        <div class="ghost" id="ghost">
+          <span class="file"><svg><use href="#i-film"/></svg><span>screen_rec.mov</span></span>
+          <span class="cur"><svg><use href="#i-cursor"/></svg></span>
+        </div>
+      </div>
+
+      <div class="controls" role="group" aria-label="패널 상태 전환">
+        <span class="ct-label">상태</span>
+        <div class="seg" id="seg">
+          <button data-state="collapsed" aria-pressed="false"><span class="tag">S4</span>접힘</button>
+          <button data-state="idle" aria-pressed="true">펼침</button>
+          <button data-state="convert" aria-pressed="false"><span class="tag">S1·S3</span>변환존 드래그</button>
+          <button data-state="hold" aria-pressed="false"><span class="tag">S2·S3</span>보관 트레이 드래그</button>
+          <button data-state="result" aria-pressed="false"><span class="tag">S5</span>변환 결과 얹힘</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span class="li"><span class="sw a"></span>변환 드롭존 — 놓으면 변환 시작</span>
+      <span class="li"><span class="sw b"></span>보관 트레이 — 담아 두고 드래그 아웃</span>
+    </div>
+  </section>
+
+  <!-- 2. STATES GALLERY -->
+  <section aria-labelledby="s2">
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <div>
+        <h2 id="s2">상태별 스냅샷</h2>
+        <p>한눈에 비교 — 접힘부터 통합 부가가치(S5)까지.</p>
+      </div>
+    </div>
+    <div class="gallery" id="gallery"></div>
+  </section>
+
+  <!-- 3. SCENARIOS -->
+  <section aria-labelledby="s3">
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <div>
+        <h2 id="s3">사용자 시나리오</h2>
+        <p>각 흐름과 "성공 기준".</p>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="scen">
+        <h3><span class="sn">S1</span>빠른 변환</h3>
+        <p>Finder에서 녹화 파일을 왼쪽 가장자리 탭으로 끌면 패널이 펼쳐지고 상단 변환존이 강조 → 놓으면 변환 시작, 완료 후 출력 폴더 열림.</p>
+        <div class="ok"><svg><use href="#i-check"/></svg><span>별도 창을 찾지 않고 한 곳으로 끌어 변환이 시작된다.</span></div>
+      </div>
+      <div class="scen">
+        <h3><span class="sn">S2</span>임시 보관 후 이동</h3>
+        <p>흩어진 파일을 하단 보관 트레이에 모아 담고, 목적 폴더로 여러 개를 선택해 드래그 아웃(이동/복사). 빠져나간 카드는 자동으로 사라진다.</p>
+        <div class="ok"><svg><use href="#i-check"/></svg><span>변환존과 헷갈리지 않고 보관·이동을 수행한다.</span></div>
+      </div>
+      <div class="scen">
+        <h3><span class="sn">S3</span>두 존 구분</h3>
+        <p>파일을 끌고 진입하면 커서가 상단이면 변환존만, 하단이면 트레이만 강조되고 라벨이 "여기 놓으면 변환/보관"으로 바뀐다.</p>
+        <div class="ok"><svg><use href="#i-check"/></svg><span>놓기 전에 결과(변환 vs 보관)를 확신할 수 있다.</span></div>
+      </div>
+      <div class="scen">
+        <h3><span class="sn">S4</span>접힘 상태 드롭</h3>
+        <p>얇은 탭에 파일을 끌면 자동으로 펼쳐지고, 두 존이 드러난 상태에서 원하는 존에 놓는다. 탭 자체는 동작을 확정하지 않는다.</p>
+        <div class="ok"><svg><use href="#i-check"/></svg><span>접혀 있어도 두 기능 모두 접근, 오작동 없음.</span></div>
+      </div>
+      <div class="scen ext">
+        <h3><span class="sn">S5</span>변환 결과 바로 옮기기 · 확장</h3>
+        <p>변환이 끝나면 결과 카드가 보관 트레이 상단에 자동으로 얹히고(잠깐 하이라이트), 사용자는 그 카드를 곧바로 원하는 폴더로 끌어낸다.</p>
+        <div class="ok"><svg><use href="#i-check"/></svg><span>"변환 → 결과 배치"가 창 전환 없이 한 표면에서 끝난다.</span></div>
+      </div>
+      <div class="scen">
+        <h3><span class="sn">S6</span>다중 모니터·화면 밖 방지</h3>
+        <p>접힌 탭은 마우스가 있는 화면의 왼쪽 가장자리를 따라가고, 모니터 구성이 바뀌어도 패널이 화면 밖으로 나가지 않게 위치를 보정한다.</p>
+        <div class="ok"><svg><use href="#i-check"/></svg><span>어떤 화면 배치에서도 항상 닿는다(기존 보장 유지).</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. RISKS -->
+  <section aria-labelledby="s4">
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <div>
+        <h2 id="s4">우려 & 대응</h2>
+        <p>통합에서 생길 수 있는 혼란과 설계적 방어.</p>
+      </div>
+    </div>
+    <div class="risk-wrap">
+      <table class="risk">
+        <thead><tr><th>#</th><th>우려</th><th>대응</th></tr></thead>
+        <tbody>
+          <tr><td class="k">C1</td><td><span class="rt">두 존이 붙어 어디 놓을지 혼란</span></td><td>드래그 중 목표 존만 하이라이트 + 넉넉한 구분선, 라벨 전환</td></tr>
+          <tr><td class="k">C2</td><td><span class="rt">변환존에 변환 불가 형식(zip 등)</span></td><td>존이 거부(빨간 힌트). 기본: 거부, 옵션으로 "보관으로 담기" 폴백</td></tr>
+          <tr><td class="k">C3</td><td><span class="rt">트레이에 영상을 "변환하려" 잘못 놓음</span></td><td>트레이는 항상 보관 전용. 변환은 상단존만(라벨로 명확화)</td></tr>
+          <tr><td class="k">C4</td><td><span class="rt">패널이 커져 세로 공간 차지</span></td><td>접힘 기본 유지, 펼침 높이 제한, 트레이 스크롤</td></tr>
+          <tr><td class="k">C5</td><td><span class="rt">드롭 타겟 자유 배치를 쓰던 사용자</span></td><td>설정에 "드롭 타겟 분리 모드"(구 방식) 유지 옵션</td></tr>
+          <tr><td class="k">C6</td><td><span class="rt">접힌 탭 드롭의 모호성</span></td><td>탭은 펼침 트리거만, 동작 확정 안 함(S4)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <span class="k">다음 단계 →</span>
+    <span><b>ShelfView</b>에 변환 드롭존 상단 추가 · 존별 <b>onDrop/hover</b> 분리 · <b>DropTargetController</b>는 통합 모드에서 숨김 · S5는 <b>finish(outcome:)</b>에서 결과를 ShelfStore에 삽입(토글).</span>
+  </footer>
+</div>
+
+<script>
+  const panel = document.getElementById('panel');
+  const ghost = document.getElementById('ghost');
+  const seg = document.getElementById('seg');
+  const dzT1 = document.getElementById('dzT1');
+  const dzT2 = document.getElementById('dzT2');
+  const cardsEl = document.getElementById('cards');
+  const cntEl = document.getElementById('cnt');
+
+  const baseCards = cardsEl.innerHTML;
+  const resultCard = '<div class="card new"><span class="flag">NEW</span><div class="thumb"><svg><use href="#i-check"/></svg></div><div class="nm">clip_resize.mp4</div></div>';
+
+  // ghost target positions within the stage (approx zone centers)
+  const GHOST = {
+    convert: { top: 150, left: 300 },
+    hold:    { top: 330, left: 322 },
+  };
+
+  function apply(state){
+    // reset
+    panel.classList.remove('collapsed');
+    ghost.classList.remove('show');
+    dzT1.textContent = '드롭하여 변환';
+    dzT2.textContent = '영상·이미지 파일 · Finder에서 끌어오기';
+    cardsEl.innerHTML = baseCards; cntEl.textContent = '4';
+    panel.setAttribute('data-mode', 'idle');
+
+    if (state === 'collapsed'){
+      panel.classList.add('collapsed');
+    } else if (state === 'convert'){
+      panel.setAttribute('data-mode','convert');
+      dzT1.textContent = '여기에 놓기';
+      dzT2.textContent = '놓으면 변환을 시작합니다';
+      ghost.style.top = GHOST.convert.top + 'px';
+      ghost.style.left = GHOST.convert.left + 'px';
+      ghost.classList.add('show');
+    } else if (state === 'hold'){
+      panel.setAttribute('data-mode','hold');
+      ghost.style.top = GHOST.hold.top + 'px';
+      ghost.style.left = GHOST.hold.left + 'px';
+      ghost.classList.add('show');
+    } else if (state === 'result'){
+      cardsEl.innerHTML = resultCard + baseCards; cntEl.textContent = '5';
+    }
+  }
+
+  seg.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button'); if(!btn) return;
+    [...seg.children].forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+    apply(btn.dataset.state);
+  });
+
+  // ---- build gallery of static snapshots by cloning the panel ----
+  const GAL = [
+    { state:'collapsed', sn:'S4', tt:'접힘 (탭)', dd:'평상시엔 얇은 탭. 카운트 배지로 보관 개수 표시.' },
+    { state:'idle',      sn:'—',  tt:'펼침 · 기본', dd:'상단 변환존 + 하단 보관 트레이가 한 표면에.' },
+    { state:'convert',   sn:'S1', tt:'변환존 드래그', dd:'상단만 강조 → "여기에 놓기 · 변환 시작".' },
+    { state:'hold',      sn:'S2', tt:'보관 트레이 드래그', dd:'하단만 강조 → 담아 두기.' },
+    { state:'result',    sn:'S5', tt:'변환 결과 얹힘', dd:'완료된 결과가 트레이 상단에 자동 등장(NEW).' },
+    { state:'empty',     sn:'—',  tt:'빈 트레이', dd:'담긴 파일이 없을 때의 안내 상태.' },
+  ];
+  const gallery = document.getElementById('gallery');
+  const emptyTrayHTML = '<div class="empty"><svg><use href="#i-tray"/></svg><div class="e1">여기에 파일을 모아 두세요</div><div class="e2">Finder에서 끌어와 담고, 필요한 곳으로 다시 끌어다 놓으세요</div></div>';
+
+  GAL.forEach(g=>{
+    const clone = panel.cloneNode(true);
+    clone.id = '';
+    clone.style.position = 'relative';
+    clone.style.top = 'auto'; clone.style.transform = 'none';
+    clone.classList.add('mini');
+    clone.classList.remove('collapsed');
+    clone.setAttribute('data-mode','idle');
+    // adjust per state
+    const cc = clone.querySelector('.cards');
+    const t1 = clone.querySelector('.dz-text .t1');
+    const t2 = clone.querySelector('.dz-text .t2');
+    const zoneB = clone.querySelector('.zoneB');
+    if (g.state === 'collapsed') clone.classList.add('collapsed');
+    if (g.state === 'convert'){ clone.setAttribute('data-mode','convert'); t1.textContent='여기에 놓기'; t2.textContent='놓으면 변환을 시작합니다'; }
+    if (g.state === 'hold') clone.setAttribute('data-mode','hold');
+    if (g.state === 'result') cc.innerHTML = resultCard + baseCards;
+    if (g.state === 'empty') zoneB.innerHTML = emptyTrayHTML;
+
+    const card = document.createElement('div');
+    card.className = 'gcard';
+    const frame = document.createElement('div'); frame.className = 'frame';
+    frame.appendChild(clone);
+    const cap = document.createElement('div'); cap.className = 'cap';
+    const snHtml = g.sn === '—' ? '' : `<span class="sn">${g.sn}</span>`;
+    cap.innerHTML = `<div class="tt">${snHtml}${g.tt}</div><div class="dd">${g.dd}</div>`;
+    card.appendChild(frame); card.appendChild(cap);
+    gallery.appendChild(card);
+  });
+</script>

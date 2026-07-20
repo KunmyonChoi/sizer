@@ -25,6 +25,8 @@ final class AppSettings: ObservableObject {
     // MARK: 플로팅 드롭 타겟 / 파일 셸프
     @Published var dropTargetShown: Bool { didSet { save(dropTargetShown, .dropTargetShown) } }
     @Published var shelfShown: Bool { didSet { save(shelfShown, .shelfShown) } }
+    @Published var integratedDrop: Bool { didSet { save(integratedDrop, .integratedDrop) } }   // 드롭 타겟을 셸프에 통합
+    @Published var addResultToShelf: Bool { didSet { save(addResultToShelf, .addResultToShelf) } }   // S5: 변환 결과 셸프에 얹기
 
     // MARK: 인코딩
     @Published var videoCodecRaw: String { didSet { save(videoCodecRaw, .videoCodec) } }
@@ -182,8 +184,17 @@ final class AppSettings: ObservableObject {
         imageQuality = defaults.object(forKey: Key.imageQuality.rawValue) as? Double ?? 0.8
         imageMaxLongEdge = defaults.object(forKey: Key.imageMaxLongEdge.rawValue) as? Int ?? 0
 
-        dropTargetShown = defaults.object(forKey: Key.dropTargetShown.rawValue) as? Bool ?? true   // 기본 보이기
-        shelfShown = defaults.object(forKey: Key.shelfShown.rawValue) as? Bool ?? false            // 기본 감추기
+        let integrated = defaults.object(forKey: Key.integratedDrop.rawValue) as? Bool ?? true      // 통합이 기본
+        integratedDrop = integrated
+        addResultToShelf = defaults.object(forKey: Key.addResultToShelf.rawValue) as? Bool ?? true
+
+        dropTargetShown = defaults.object(forKey: Key.dropTargetShown.rawValue) as? Bool ?? true   // 기본 보이기(분리 모드에서만 의미)
+        // 통합 모드에선 셸프가 드롭 표면이므로 기본 표시, 분리 모드에선 기본 감춤.
+        if let shown = defaults.object(forKey: Key.shelfShown.rawValue) as? Bool {
+            shelfShown = shown
+        } else {
+            shelfShown = integrated
+        }
     }
 
     /// 기본 베이스 폴더: ~/Movies/Sizer
@@ -212,7 +223,7 @@ final class AppSettings: ObservableObject {
         case sensitivity, stillNoiseDb, stillMinDuration
         case mergeGapMax, minKeep, pad, smoothTransitions, minKeepRatio
         case imageEnabled, imageFormat, imageQuality, imageMaxLongEdge
-        case dropTargetShown, shelfShown
+        case dropTargetShown, shelfShown, integratedDrop, addResultToShelf
     }
 
     private func save(_ value: Any, _ key: Key) {

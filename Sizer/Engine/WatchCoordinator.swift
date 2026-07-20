@@ -43,8 +43,8 @@ final class WatchCoordinator: ObservableObject {
     /// 플로팅 드롭 타겟 패널 컨트롤러.
     private lazy var dropTargetController = DropTargetController(coordinator: self)
 
-    /// 파일 셸프 패널 컨트롤러.
-    private lazy var shelfController = ShelfController()
+    /// 파일 셸프 패널 컨트롤러(통합 모드에선 변환 드롭존 포함).
+    private lazy var shelfController = ShelfController(coordinator: self)
 
     init(settings: AppSettings) {
         self.settings = settings
@@ -68,14 +68,25 @@ final class WatchCoordinator: ObservableObject {
     // MARK: 플로팅 드롭 타겟
 
     private func restoreDropTarget() {
-        if settings.dropTargetShown {
-            dropTargetController.show()
-            dropTargetVisible = true
+        if settings.integratedDrop {
+            // 통합: 셸프 하나가 드롭+보관을 겸한다. 별도 드롭 타겟은 쓰지 않음.
+            dropTargetVisible = false
+            if settings.shelfShown { shelfController.show(); shelfVisible = true }
+            else { shelfVisible = false }
+        } else {
+            // 분리(구 동작): 자유 부유 드롭 타겟 + 보관 전용 셸프.
+            if settings.dropTargetShown { dropTargetController.show(); dropTargetVisible = true }
+            else { dropTargetVisible = false }
+            if settings.shelfShown { shelfController.show(); shelfVisible = true }
+            else { shelfVisible = false }
         }
-        if settings.shelfShown {
-            shelfController.show()
-            shelfVisible = true
-        }
+    }
+
+    /// 통합/분리 모드가 바뀌면 패널 구성을 다시 맞춘다.
+    private func reconfigurePanels() {
+        dropTargetController.hide(); dropTargetVisible = false
+        shelfController.rebuild()   // 다음 show 시 새 모드로 뷰 재생성
+        restoreDropTarget()
     }
 
     func toggleDropTarget() {
@@ -155,6 +166,14 @@ final class WatchCoordinator: ObservableObject {
             .removeDuplicates()
             .sink { enabled in LoginItem.setEnabled(enabled) }
             .store(in: &cancellables)
+
+        settings.$integratedDrop
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] _ in
+                Task { @MainActor in self?.reconfigurePanels() }
+            }
+            .store(in: &cancellables)
     }
 
     private func restartWatcher() {
@@ -224,9 +243,17 @@ final class WatchCoordinator: ObservableObject {
 
     private func finish(outcome: JobOutcome, key: String) {
         active.remove(key)
-        // 드롭 타겟으로 넣은 파일이 변환 완료되면 출력 폴더 자동 열기(배치당 1회)
-        if dropTargetPending.remove(outcome.sourceName) != nil, outcome.success, settings.openOutputAfterDrop {
-            scheduleOpenOutput()
+        // 드롭 타겟(또는 통합 변환존)으로 넣은 파일이 변환 완료되면:
+        let wasDropOriginated = dropTargetPending.remove(outcome.sourceName) != nil
+        if wasDropOriginated, outcome.success {
+            // S5: 변환 결과를 셸프 트레이 맨 앞에 얹어 바로 옮길 수 있게 한다.
+            if settings.addResultToShelf, let output = outcome.outputURL {
+                shelfController.store.insertFront(output)
+            }
+            // 출력 폴더 자동 열기(배치당 1회)
+            if settings.openOutputAfterDrop {
+                scheduleOpenOutput()
+            }
         }
         let record = JobRecord(
             sourceName: outcome.sourceName,
