@@ -12,7 +12,7 @@ struct ShelfView: View {
     static let handleWidth: CGFloat = 22
     static let trayWidth: CGFloat = 450
     static let baseTrayHeight: CGFloat = 220     // 보관 헤더 + 카드 영역
-    static let convertZoneHeight: CGFloat = 92   // 상단 변환 드롭존
+    static let convertZoneHeight: CGFloat = 104  // 상단 변환 드롭존(카드 외부 여백 포함)
     static var expandedWidth: CGFloat { handleWidth + trayWidth }
 
     /// 통합 여부에 따른 패널 전체 높이(컨트롤러의 히트테스트와 일치해야 함).
@@ -84,7 +84,6 @@ struct ShelfView: View {
                 Divider().overlay(Color.white.opacity(0.10))
             }
             holdingHeader
-            Divider().overlay(Color.white.opacity(0.10))
             holdingBody
         }
         .frame(width: Self.trayWidth)
@@ -131,42 +130,42 @@ struct ShelfView: View {
     }
 
     private var convertZone: some View {
-        HStack(spacing: 13) {
+        HStack(spacing: 14) {
             RoundedRectangle(cornerRadius: 13, style: .continuous)
                 .fill(czBadgeStyle)
-                .frame(width: 42, height: 42)
+                .frame(width: 44, height: 44)
                 .overlay(
                     Image(systemName: czIcon)
-                        .font(.system(size: 18, weight: .bold))
+                        .font(.system(size: 19, weight: .bold))
                         .foregroundStyle(.white)
                 )
                 .shadow(color: accent.opacity(0.45), radius: 8, y: 3)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(czTitle).font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
-                Text(czSubtitle).font(.system(size: 11.5, weight: .medium)).foregroundStyle(.white.opacity(0.62))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(czTitle).font(.system(size: 15.5, weight: .bold)).foregroundStyle(.white)
+                Text(czSubtitle).font(.system(size: 12, weight: .medium)).foregroundStyle(.white.opacity(0.62))
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 14)
-        .frame(maxWidth: .infinity)
-        .frame(height: Self.convertZoneHeight)
+        .padding(.horizontal, 18)   // 콘텐츠 ↔ 테두리(아이콘 왼쪽 여백)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(convertActive
                       ? AnyShapeStyle(LinearGradient(colors: [Color(hex: 0x0EA5E9).opacity(0.28), Color(hex: 0x8B5CF6).opacity(0.28)],
                                                      startPoint: .topLeading, endPoint: .bottomTrailing))
                       : AnyShapeStyle(Color.white.opacity(0.05)))
-                .padding(.horizontal, 12).padding(.vertical, 8)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .strokeBorder(convertActive ? AnyShapeStyle(grad) : AnyShapeStyle(Color.white.opacity(0.20)),
-                              style: StrokeStyle(lineWidth: convertActive ? 2 : 1.4,
+                              style: StrokeStyle(lineWidth: convertActive ? 2 : 1.5,
                                                  dash: convertActive ? [] : [5, 4]))
-                .padding(.horizontal, 12).padding(.vertical, 8)
         )
-        .scaleEffect(convertActive ? 1.02 : 1)
-        .shadow(color: convertActive ? accent.opacity(0.4) : .clear, radius: 18)
+        .scaleEffect(convertActive ? 1.015 : 1)
+        .shadow(color: convertActive ? accent.opacity(0.38) : .clear, radius: 16)
+        .padding(.horizontal, 14)   // 카드 ↔ 패널 가장자리
+        .padding(.top, 14).padding(.bottom, 8)
+        .frame(height: Self.convertZoneHeight)
         .animation(.spring(response: 0.3, dampingFraction: 0.74), value: convertActive)
         .animation(.easeOut(duration: 0.2), value: dropState.convertFlash)
         .animation(.easeOut(duration: 0.2), value: dropState.rejectFlash)
@@ -205,6 +204,7 @@ struct ShelfView: View {
             } else {
                 ShelfCollectionView(
                     items: store.items,
+                    newIDs: store.newItemIDs,
                     onRemove: { store.remove($0) },
                     onMovedOut: { store.remove($0) },
                     onDragSession: onDragSession

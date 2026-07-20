@@ -13,6 +13,7 @@ struct ShelfItem: Identifiable, Equatable {
 @MainActor
 final class ShelfStore: ObservableObject {
     @Published private(set) var items: [ShelfItem] = []
+    @Published private(set) var newItemIDs: Set<UUID> = []   // 방금 얹힌 변환 결과(NEW 배지용, S5)
 
     var isEmpty: Bool { items.isEmpty }
     var count: Int { items.count }
@@ -36,20 +37,34 @@ final class ShelfStore: ObservableObject {
         guard url.isFileURL else { return false }
         let std = url.standardizedFileURL
         guard !items.contains(where: { $0.url.standardizedFileURL == std }) else { return false }
-        items.insert(ShelfItem(url: std), at: 0)
+        let item = ShelfItem(url: std)
+        items.insert(item, at: 0)
+        markNew(item.id)
         return true
+    }
+
+    /// 방금 얹힌 결과를 잠깐 'NEW'로 표시(S5). 몇 초 뒤 자동 해제.
+    private func markNew(_ id: UUID) {
+        newItemIDs.insert(id)
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            self?.newItemIDs.remove(id)
+        }
     }
 
     func remove(_ item: ShelfItem) {
         items.removeAll { $0.id == item.id }
+        newItemIDs.remove(item.id)
     }
 
     func remove(id: UUID) {
         items.removeAll { $0.id == id }
+        newItemIDs.remove(id)
     }
 
     func clear() {
         items.removeAll()
+        newItemIDs.removeAll()
     }
 }
 
