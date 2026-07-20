@@ -45,6 +45,17 @@ struct GeneralSettingsView: View {
                 Text("변환이 끝난 결과 파일을 보관 트레이 맨 앞에 얹어 바로 옮길 수 있게 합니다.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                Picker("패널 위치", selection: $settings.shelfSideRaw) {
+                    Text("왼쪽").tag(ShelfSide.left.rawValue)
+                    Text("오른쪽").tag(ShelfSide.right.rawValue)
+                }
+                LabeledContent("패널 열기/닫기 단축키") {
+                    ShortcutRecorder()
+                }
+                Text("어디서든 이 단축키로 패널을 열고 닫습니다. 접근성 권한이 필요 없습니다.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("정리") {

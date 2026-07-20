@@ -68,16 +68,26 @@ final class ShelfStore: ObservableObject {
     }
 }
 
+/// 패널이 도킹되는 화면 가장자리.
+enum ShelfSide: String, CaseIterable {
+    case left, right
+    var isLeft: Bool { self == .left }
+}
+
 /// 통합 셸프 패널에서 드롭이 향하는 존. 상단은 변환, 하단은 보관.
 enum ShelfDropZone: Equatable {
     case convert   // 상단 변환 드롭존(구 드롭 타겟)
     case hold      // 하단 보관 트레이
 
     /// 드롭 지점이 어느 존인지(AppKit 좌표, origin 좌하단). 순수 함수 — 단위 테스트 대상.
-    /// 통합(integrated)·펼침(expanded) 상태에서 핸들을 벗어난 상단 영역만 변환존, 그 외는 모두 보관.
-    static func at(_ p: CGPoint, panelHeight: CGFloat, handleWidth: CGFloat,
-                   convertZoneHeight: CGFloat, integrated: Bool, expanded: Bool) -> ShelfDropZone {
-        guard integrated, expanded, p.x >= handleWidth else { return .hold }
+    /// 통합(integrated)·펼침(expanded) 상태에서 핸들 열을 벗어난 상단 영역만 변환존, 그 외는 모두 보관.
+    /// 핸들은 왼쪽 도킹이면 좌측(x<handleWidth), 오른쪽 도킹이면 우측(x>panelWidth-handleWidth)에 있다.
+    static func at(_ p: CGPoint, panelHeight: CGFloat, panelWidth: CGFloat, handleWidth: CGFloat,
+                   convertZoneHeight: CGFloat, handleOnLeft: Bool,
+                   integrated: Bool, expanded: Bool) -> ShelfDropZone {
+        guard integrated, expanded else { return .hold }
+        let inHandleColumn = handleOnLeft ? (p.x < handleWidth) : (p.x > panelWidth - handleWidth)
+        if inHandleColumn { return .hold }
         return p.y >= panelHeight - convertZoneHeight ? .convert : .hold
     }
 }

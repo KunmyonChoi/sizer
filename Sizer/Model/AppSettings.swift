@@ -27,6 +27,12 @@ final class AppSettings: ObservableObject {
     @Published var shelfShown: Bool { didSet { save(shelfShown, .shelfShown) } }
     @Published var integratedDrop: Bool { didSet { save(integratedDrop, .integratedDrop) } }   // 드롭 타겟을 셸프에 통합
     @Published var addResultToShelf: Bool { didSet { save(addResultToShelf, .addResultToShelf) } }   // S5: 변환 결과 셸프에 얹기
+    @Published var shelfSideRaw: String { didSet { save(shelfSideRaw, .shelfSide) } }          // 패널 도킹 가장자리(left/right)
+
+    // MARK: 글로벌 단축키(패널 열기/닫기)
+    @Published var shortcutKeyCode: Int { didSet { save(shortcutKeyCode, .shortcutKeyCode) } }        // NSEvent.keyCode(가상 키코드)
+    @Published var shortcutModifiers: Int { didSet { save(shortcutModifiers, .shortcutModifiers) } }  // NSEvent.ModifierFlags rawValue
+    @Published var shortcutDisplay: String { didSet { save(shortcutDisplay, .shortcutDisplay) } }     // 표시용(예 "⌥⌘S")
 
     // MARK: 인코딩
     @Published var videoCodecRaw: String { didSet { save(videoCodecRaw, .videoCodec) } }
@@ -77,6 +83,26 @@ final class AppSettings: ObservableObject {
     var stillMode: StillMode {
         get { StillMode(rawValue: stillModeRaw) ?? .off }
         set { stillModeRaw = newValue.rawValue }
+    }
+
+    var shelfSide: ShelfSide {
+        get { ShelfSide(rawValue: shelfSideRaw) ?? .left }
+        set { shelfSideRaw = newValue.rawValue }
+    }
+
+    var hasShortcut: Bool { shortcutKeyCode != 0 || shortcutModifiers != 0 }
+
+    /// 단축키 저장(레코더에서 호출). 표시 문자열도 함께 보관.
+    func setShortcut(keyCode: Int, modifiers: Int, display: String) {
+        shortcutKeyCode = keyCode
+        shortcutModifiers = modifiers
+        shortcutDisplay = display
+    }
+
+    func clearShortcut() {
+        shortcutKeyCode = 0
+        shortcutModifiers = 0
+        shortcutDisplay = ""
     }
 
     var dropFolderURL: URL { URL(fileURLWithPath: dropFolderPath, isDirectory: true) }
@@ -158,22 +184,23 @@ final class AppSettings: ObservableObject {
         audioBitrate = defaults.string(forKey: Key.audioBitrate.rawValue) ?? "128k"
         outputSuffix = defaults.string(forKey: Key.outputSuffix.rawValue) ?? "_resize"
 
-        // stillMode: 신규 기본 '끔'. 기존 trimStill 값이 있으면 마이그레이션(true→잘라내기, false→끔).
+        // stillMode: 신규 기본 '빨리감기'. 기존 trimStill 값이 있으면 마이그레이션(true→잘라내기, false→끔).
         if let saved = defaults.string(forKey: Key.stillMode.rawValue) {
             stillModeRaw = saved
         } else if let legacy = defaults.object(forKey: Key.trimStill.rawValue) as? Bool {
             stillModeRaw = legacy ? StillMode.trim.rawValue : StillMode.off.rawValue
         } else {
-            stillModeRaw = StillMode.off.rawValue
+            stillModeRaw = StillMode.fastForward.rawValue
         }
         ffSpeed = defaults.object(forKey: Key.ffSpeed.rawValue) as? Int ?? 4
         ffMinDuration = defaults.object(forKey: Key.ffMinDuration.rawValue) as? Double ?? 2.0
         ffMuteAudio = defaults.object(forKey: Key.ffMuteAudio.rawValue) as? Bool ?? true
         ffBadge = defaults.object(forKey: Key.ffBadge.rawValue) as? Bool ?? true
-        sensitivityRaw = defaults.string(forKey: Key.sensitivity.rawValue) ?? SensitivityPreset.balanced.rawValue
-        stillNoiseDb = defaults.object(forKey: Key.stillNoiseDb.rawValue) as? Double ?? -50.0
-        stillMinDuration = defaults.object(forKey: Key.stillMinDuration.rawValue) as? Double ?? 2.0
-        mergeGapMax = defaults.object(forKey: Key.mergeGapMax.rawValue) as? Double ?? 0.5
+        // 감지 민감도: 신규 기본 '보수적'(-58dB / 최소정지 3.0s / 병합 0.7s).
+        sensitivityRaw = defaults.string(forKey: Key.sensitivity.rawValue) ?? SensitivityPreset.conservative.rawValue
+        stillNoiseDb = defaults.object(forKey: Key.stillNoiseDb.rawValue) as? Double ?? -58.0
+        stillMinDuration = defaults.object(forKey: Key.stillMinDuration.rawValue) as? Double ?? 3.0
+        mergeGapMax = defaults.object(forKey: Key.mergeGapMax.rawValue) as? Double ?? 0.7
         minKeep = defaults.object(forKey: Key.minKeep.rawValue) as? Double ?? 0.3
         pad = defaults.object(forKey: Key.pad.rawValue) as? Double ?? 0.15
         smoothTransitions = defaults.object(forKey: Key.smoothTransitions.rawValue) as? Bool ?? false
@@ -187,6 +214,10 @@ final class AppSettings: ObservableObject {
         let integrated = defaults.object(forKey: Key.integratedDrop.rawValue) as? Bool ?? true      // 통합이 기본
         integratedDrop = integrated
         addResultToShelf = defaults.object(forKey: Key.addResultToShelf.rawValue) as? Bool ?? true
+        shelfSideRaw = defaults.string(forKey: Key.shelfSide.rawValue) ?? ShelfSide.right.rawValue
+        shortcutKeyCode = defaults.object(forKey: Key.shortcutKeyCode.rawValue) as? Int ?? 0
+        shortcutModifiers = defaults.object(forKey: Key.shortcutModifiers.rawValue) as? Int ?? 0
+        shortcutDisplay = defaults.string(forKey: Key.shortcutDisplay.rawValue) ?? ""
 
         dropTargetShown = defaults.object(forKey: Key.dropTargetShown.rawValue) as? Bool ?? true   // 기본 보이기(분리 모드에서만 의미)
         // 통합 모드에선 셸프가 드롭 표면이므로 기본 표시, 분리 모드에선 기본 감춤.
@@ -223,7 +254,8 @@ final class AppSettings: ObservableObject {
         case sensitivity, stillNoiseDb, stillMinDuration
         case mergeGapMax, minKeep, pad, smoothTransitions, minKeepRatio
         case imageEnabled, imageFormat, imageQuality, imageMaxLongEdge
-        case dropTargetShown, shelfShown, integratedDrop, addResultToShelf
+        case dropTargetShown, shelfShown, integratedDrop, addResultToShelf, shelfSide
+        case shortcutKeyCode, shortcutModifiers, shortcutDisplay
     }
 
     private func save(_ value: Any, _ key: Key) {

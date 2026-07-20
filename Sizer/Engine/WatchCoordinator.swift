@@ -21,6 +21,7 @@ final class WatchCoordinator: ObservableObject {
     private let ingestQueue = DispatchQueue(label: "com.dilly.sizer.ingest")  // 드롭 파일 복사
     private var dropTargetPending: Set<String> = []   // 드롭 타겟으로 넣어 변환 대기 중인 파일명
     private var openOutputWork: DispatchWorkItem?
+    private let hotKey = GlobalHotKey()               // 전역 단축키(패널 열기/닫기)
     private var active: Set<String> = []       // 큐잉/변환 중인 파일 경로
     private var paused = false
     private var cancellables: Set<AnyCancellable> = []
@@ -63,6 +64,12 @@ final class WatchCoordinator: ObservableObject {
         scan()
         updateStatus()
         restoreDropTarget()
+        hotKey.onFire = { [weak self] in self?.toggleShelf() }
+        updateHotKey()
+    }
+
+    private func updateHotKey() {
+        hotKey.update(keyCode: settings.shortcutKeyCode, cocoaModifiers: settings.shortcutModifiers)
     }
 
     // MARK: 플로팅 드롭 타겟
@@ -172,6 +179,22 @@ final class WatchCoordinator: ObservableObject {
             .removeDuplicates()
             .sink { [weak self] _ in
                 Task { @MainActor in self?.reconfigurePanels() }
+            }
+            .store(in: &cancellables)
+
+        settings.$shelfSideRaw
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] _ in
+                Task { @MainActor in self?.shelfController.rebuild() }   // 반대 가장자리로 이동(내용 유지)
+            }
+            .store(in: &cancellables)
+
+        Publishers.CombineLatest(settings.$shortcutKeyCode, settings.$shortcutModifiers)
+            .dropFirst()
+            .removeDuplicates { $0 == $1 }
+            .sink { [weak self] _ in
+                Task { @MainActor in self?.updateHotKey() }
             }
             .store(in: &cancellables)
     }
