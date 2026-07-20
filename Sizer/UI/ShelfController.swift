@@ -85,7 +85,15 @@ final class ShelfController {
             store: store, dropState: dropState, showConvertZone: showConvertZone, side: side,
             onDragSession: { [weak self] active in self?.setDraggingOut(active) }
         ))
-        host.frame = NSRect(x: 0, y: 0, width: expandedW, height: height)   // 항상 펼친 크기
+        // 내용은 항상 펼친 크기. 접힘 시 보이는 슬라이스가 '핸들'이 되도록 도킹 가장자리에 앵커링:
+        // 왼쪽 도킹은 좌측 고정(핸들이 좌측), 오른쪽 도킹은 우측 고정(핸들이 우측).
+        if side.isLeft {
+            host.frame = NSRect(x: 0, y: 0, width: expandedW, height: height)
+            host.autoresizingMask = [.maxXMargin]
+        } else {
+            host.frame = NSRect(x: handleW - expandedW, y: 0, width: expandedW, height: height)
+            host.autoresizingMask = [.minXMargin]
+        }
         host.appearance = NSAppearance(named: .darkAqua)
         hostingView = host
 
