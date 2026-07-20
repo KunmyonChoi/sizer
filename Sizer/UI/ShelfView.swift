@@ -7,6 +7,7 @@ struct ShelfView: View {
     @ObservedObject var store: ShelfStore
     @ObservedObject var dropState: ShelfDropState
     var showConvertZone: Bool = true
+    var side: ShelfSide = .left
     var onDragSession: (Bool) -> Void = { _ in }
 
     static let handleWidth: CGFloat = 22
@@ -30,9 +31,11 @@ struct ShelfView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            handle
-            Rectangle().fill(Color.white.opacity(0.12)).frame(width: 1)
-            tray
+            if side.isLeft {
+                handle; edgeDivider; tray
+            } else {
+                tray; edgeDivider; handle
+            }
         }
         .frame(width: Self.expandedWidth, height: Self.panelHeight(showConvertZone: showConvertZone))
         .background {
@@ -43,12 +46,18 @@ struct ShelfView: View {
             .clipShape(edgeShape)
         }
         .overlay(edgeShape.strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
-        .shadow(color: .black.opacity(0.30), radius: 22, x: 8, y: 6)
+        .shadow(color: .black.opacity(0.30), radius: 22, x: side.isLeft ? 8 : -8, y: 6)
     }
 
+    private var edgeDivider: some View { Rectangle().fill(Color.white.opacity(0.12)).frame(width: 1) }
+
+    /// 도킹 가장자리 반대쪽(화면 안쪽) 모서리만 둥글게.
     private var edgeShape: UnevenRoundedRectangle {
-        UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 0,
-                               bottomTrailingRadius: 24, topTrailingRadius: 24, style: .continuous)
+        side.isLeft
+            ? UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 0,
+                                     bottomTrailingRadius: 24, topTrailingRadius: 24, style: .continuous)
+            : UnevenRoundedRectangle(topLeadingRadius: 24, bottomLeadingRadius: 24,
+                                     bottomTrailingRadius: 0, topTrailingRadius: 0, style: .continuous)
     }
 
     // MARK: 핸들(접힘 시 보이는 얇은 탭)
@@ -59,7 +68,7 @@ struct ShelfView: View {
                 .fill(grad)
                 .frame(width: 15, height: 15)
                 .overlay(Image(systemName: "square.stack.3d.up.fill").font(.system(size: 8, weight: .bold)).foregroundStyle(.white))
-            Image(systemName: "chevron.compact.right")
+            Image(systemName: side.isLeft ? "chevron.compact.right" : "chevron.compact.left")
                 .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(.white.opacity(0.4))
             Spacer()

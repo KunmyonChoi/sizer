@@ -32,6 +32,7 @@ final class ShelfController {
 
     /// 통합 모드일 때만 상단 변환 드롭존을 노출한다.
     private var showConvertZone: Bool { coordinator.settings.integratedDrop }
+    private var side: ShelfSide { coordinator.settings.shelfSide }
     /// 통합 여부에 따른 패널 높이(ShelfView와 일치).
     private var height: CGFloat { ShelfView.panelHeight(showConvertZone: showConvertZone) }
 
@@ -81,7 +82,7 @@ final class ShelfController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
         let host = NSHostingView(rootView: ShelfView(
-            store: store, dropState: dropState, showConvertZone: showConvertZone,
+            store: store, dropState: dropState, showConvertZone: showConvertZone, side: side,
             onDragSession: { [weak self] active in self?.setDraggingOut(active) }
         ))
         host.frame = NSRect(x: 0, y: 0, width: expandedW, height: height)   // 항상 펼친 크기
@@ -105,8 +106,8 @@ final class ShelfController {
     // MARK: 드롭 라우팅(존 분기)
 
     private func resolveZone(_ p: NSPoint) -> ShelfDropZone {
-        ShelfDropZone.at(p, panelHeight: height, handleWidth: handleW,
-                         convertZoneHeight: ShelfView.convertZoneHeight,
+        ShelfDropZone.at(p, panelHeight: height, panelWidth: expandedW, handleWidth: handleW,
+                         convertZoneHeight: ShelfView.convertZoneHeight, handleOnLeft: side.isLeft,
                          integrated: showConvertZone, expanded: expanded)
     }
 
@@ -154,7 +155,8 @@ final class ShelfController {
         let frac = UserDefaults.standard.object(forKey: vFracKey) as? Double ?? 0.5
         let usable = max(0, vf.height - height)
         let y = vf.minY + usable * CGFloat(frac)
-        return NSRect(x: vf.minX, y: y, width: width, height: height)
+        let x = side.isLeft ? vf.minX : vf.maxX - width
+        return NSRect(x: x, y: y, width: width, height: height)
     }
 
     private func setPanelWidth(_ width: CGFloat, animate: Bool) {
@@ -231,8 +233,9 @@ final class ShelfController {
         let vf = screen.visibleFrame
 
         if !expanded {
-            // 왼쪽 가장자리 탭 밴드 안에 dwell → 펼침
-            let inBand = mouse.x <= vf.minX + handleW + 4
+            // 도킹 가장자리 탭 밴드 안에 dwell → 펼침
+            let inBand = (side.isLeft ? mouse.x <= vf.minX + handleW + 4
+                                      : mouse.x >= vf.maxX - handleW - 4)
                 && mouse.y >= panel.frame.minY && mouse.y <= panel.frame.maxY
                 && NSMouseInRect(mouse, screen.frame, false)
             if inBand {

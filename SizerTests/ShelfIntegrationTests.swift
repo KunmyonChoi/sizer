@@ -4,54 +4,54 @@ import XCTest
 @MainActor
 final class ShelfIntegrationTests: XCTestCase {
 
-    private let H = ShelfView.panelHeight(showConvertZone: true)   // 312 (220 + 92)
+    private let H = ShelfView.panelHeight(showConvertZone: true)   // 324 (220 + 104)
+    private let W = ShelfView.expandedWidth
     private let handle = ShelfView.handleWidth
     private let czH = ShelfView.convertZoneHeight
+
+    private func zone(_ p: CGPoint, handleOnLeft: Bool = true,
+                      integrated: Bool = true, expanded: Bool = true) -> ShelfDropZone {
+        ShelfDropZone.at(p, panelHeight: H, panelWidth: W, handleWidth: handle,
+                         convertZoneHeight: czH, handleOnLeft: handleOnLeft,
+                         integrated: integrated, expanded: expanded)
+    }
 
     // MARK: 드롭 존 라우팅(순수 함수)
 
     func testTopRegionIsConvertWhenIntegratedAndExpanded() {
-        // 상단(y >= panelHeight - convertZoneHeight), 핸들 밖 → 변환
-        let p = CGPoint(x: 200, y: H - 10)
-        XCTAssertEqual(ShelfDropZone.at(p, panelHeight: H, handleWidth: handle,
-                                        convertZoneHeight: czH, integrated: true, expanded: true), .convert)
+        XCTAssertEqual(zone(CGPoint(x: 200, y: H - 10)), .convert)   // 상단, 핸들 밖
     }
 
     func testBottomRegionIsHold() {
-        let p = CGPoint(x: 200, y: 60)   // 하단
-        XCTAssertEqual(ShelfDropZone.at(p, panelHeight: H, handleWidth: handle,
-                                        convertZoneHeight: czH, integrated: true, expanded: true), .hold)
+        XCTAssertEqual(zone(CGPoint(x: 200, y: 60)), .hold)
     }
 
     func testHandleColumnNeverConvert() {
-        // 상단이라도 핸들 열(x < handleWidth)이면 보관(안전)
-        let p = CGPoint(x: handle - 5, y: H - 10)
-        XCTAssertEqual(ShelfDropZone.at(p, panelHeight: H, handleWidth: handle,
-                                        convertZoneHeight: czH, integrated: true, expanded: true), .hold)
+        // 왼쪽 도킹: 상단이라도 왼쪽 핸들 열이면 보관(안전)
+        XCTAssertEqual(zone(CGPoint(x: handle - 5, y: H - 10)), .hold)
+    }
+
+    func testRightDockHandleColumnNeverConvert() {
+        // 오른쪽 도킹: 핸들은 우측(x > panelWidth - handleWidth)
+        XCTAssertEqual(zone(CGPoint(x: W - 5, y: H - 10), handleOnLeft: false), .hold)
+    }
+
+    func testRightDockTopIsConvert() {
+        // 오른쪽 도킹: 우측 핸들 밖 상단이면 변환
+        XCTAssertEqual(zone(CGPoint(x: 200, y: H - 10), handleOnLeft: false), .convert)
     }
 
     func testCollapsedNeverConvert() {
-        // 접힘 상태에서는 존을 확정하지 않고 항상 보관(C6)
-        let p = CGPoint(x: 200, y: H - 10)
-        XCTAssertEqual(ShelfDropZone.at(p, panelHeight: H, handleWidth: handle,
-                                        convertZoneHeight: czH, integrated: true, expanded: false), .hold)
+        XCTAssertEqual(zone(CGPoint(x: 200, y: H - 10), expanded: false), .hold)   // C6
     }
 
     func testNonIntegratedNeverConvert() {
-        // 분리 모드 셸프는 변환존이 없으므로 항상 보관
-        let p = CGPoint(x: 200, y: H - 10)
-        XCTAssertEqual(ShelfDropZone.at(p, panelHeight: H, handleWidth: handle,
-                                        convertZoneHeight: czH, integrated: false, expanded: true), .hold)
+        XCTAssertEqual(zone(CGPoint(x: 200, y: H - 10), integrated: false), .hold)
     }
 
     func testConvertBoundaryIsInclusive() {
-        // 경계(정확히 panelHeight - convertZoneHeight)는 변환에 포함
-        let p = CGPoint(x: 200, y: H - czH)
-        XCTAssertEqual(ShelfDropZone.at(p, panelHeight: H, handleWidth: handle,
-                                        convertZoneHeight: czH, integrated: true, expanded: true), .convert)
-        let below = CGPoint(x: 200, y: H - czH - 1)
-        XCTAssertEqual(ShelfDropZone.at(below, panelHeight: H, handleWidth: handle,
-                                        convertZoneHeight: czH, integrated: true, expanded: true), .hold)
+        XCTAssertEqual(zone(CGPoint(x: 200, y: H - czH)), .convert)
+        XCTAssertEqual(zone(CGPoint(x: 200, y: H - czH - 1)), .hold)
     }
 
     // MARK: S5 — 결과를 트레이 맨 앞에 삽입
