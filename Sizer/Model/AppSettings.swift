@@ -184,22 +184,23 @@ final class AppSettings: ObservableObject {
         audioBitrate = defaults.string(forKey: Key.audioBitrate.rawValue) ?? "128k"
         outputSuffix = defaults.string(forKey: Key.outputSuffix.rawValue) ?? "_resize"
 
-        // stillMode: 신규 기본 '끔'. 기존 trimStill 값이 있으면 마이그레이션(true→잘라내기, false→끔).
+        // stillMode: 신규 기본 '빨리감기'. 기존 trimStill 값이 있으면 마이그레이션(true→잘라내기, false→끔).
         if let saved = defaults.string(forKey: Key.stillMode.rawValue) {
             stillModeRaw = saved
         } else if let legacy = defaults.object(forKey: Key.trimStill.rawValue) as? Bool {
             stillModeRaw = legacy ? StillMode.trim.rawValue : StillMode.off.rawValue
         } else {
-            stillModeRaw = StillMode.off.rawValue
+            stillModeRaw = StillMode.fastForward.rawValue
         }
         ffSpeed = defaults.object(forKey: Key.ffSpeed.rawValue) as? Int ?? 4
         ffMinDuration = defaults.object(forKey: Key.ffMinDuration.rawValue) as? Double ?? 2.0
         ffMuteAudio = defaults.object(forKey: Key.ffMuteAudio.rawValue) as? Bool ?? true
         ffBadge = defaults.object(forKey: Key.ffBadge.rawValue) as? Bool ?? true
-        sensitivityRaw = defaults.string(forKey: Key.sensitivity.rawValue) ?? SensitivityPreset.balanced.rawValue
-        stillNoiseDb = defaults.object(forKey: Key.stillNoiseDb.rawValue) as? Double ?? -50.0
-        stillMinDuration = defaults.object(forKey: Key.stillMinDuration.rawValue) as? Double ?? 2.0
-        mergeGapMax = defaults.object(forKey: Key.mergeGapMax.rawValue) as? Double ?? 0.5
+        // 감지 민감도: 신규 기본 '보수적'(-58dB / 최소정지 3.0s / 병합 0.7s).
+        sensitivityRaw = defaults.string(forKey: Key.sensitivity.rawValue) ?? SensitivityPreset.conservative.rawValue
+        stillNoiseDb = defaults.object(forKey: Key.stillNoiseDb.rawValue) as? Double ?? -58.0
+        stillMinDuration = defaults.object(forKey: Key.stillMinDuration.rawValue) as? Double ?? 3.0
+        mergeGapMax = defaults.object(forKey: Key.mergeGapMax.rawValue) as? Double ?? 0.7
         minKeep = defaults.object(forKey: Key.minKeep.rawValue) as? Double ?? 0.3
         pad = defaults.object(forKey: Key.pad.rawValue) as? Double ?? 0.15
         smoothTransitions = defaults.object(forKey: Key.smoothTransitions.rawValue) as? Bool ?? false
@@ -213,7 +214,7 @@ final class AppSettings: ObservableObject {
         let integrated = defaults.object(forKey: Key.integratedDrop.rawValue) as? Bool ?? true      // 통합이 기본
         integratedDrop = integrated
         addResultToShelf = defaults.object(forKey: Key.addResultToShelf.rawValue) as? Bool ?? true
-        shelfSideRaw = defaults.string(forKey: Key.shelfSide.rawValue) ?? ShelfSide.left.rawValue
+        shelfSideRaw = defaults.string(forKey: Key.shelfSide.rawValue) ?? ShelfSide.right.rawValue
         shortcutKeyCode = defaults.object(forKey: Key.shortcutKeyCode.rawValue) as? Int ?? 0
         shortcutModifiers = defaults.object(forKey: Key.shortcutModifiers.rawValue) as? Int ?? 0
         shortcutDisplay = defaults.string(forKey: Key.shortcutDisplay.rawValue) ?? ""
