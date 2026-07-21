@@ -29,3 +29,4 @@ DerivedData/
 # hyperframes 튜토리얼 빌드 산출물
 tutorial/out/
 tutorial/node_modules/
+tutorial/renders/

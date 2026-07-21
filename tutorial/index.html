@@ -47,12 +47,13 @@
 
       /* ---------- 자막 ---------- */
       .cap {
-        position: absolute; left: 50%; bottom: 92px; transform: translateX(-50%);
-        z-index: 5; text-align: center; width: 1500px;
+        position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%);
+        z-index: 8; text-align: center; width: 1560px;
       }
       .cap .ko { font-size: 60px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15;
-        text-shadow: 0 2px 18px rgba(255,255,255,0.7); }
-      .cap .en { margin-top: 12px; font-size: 30px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
+        text-shadow: 0 2px 20px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8); }
+      .cap .en { margin-top: 12px; font-size: 30px; font-weight: 600; color: var(--muted); letter-spacing: 0;
+        text-shadow: 0 2px 14px rgba(255,255,255,0.9); }
 
       /* ---------- S1 인트로 ---------- */
       #s1 { flex-direction: column; gap: 34px; }
@@ -60,7 +61,7 @@
       #s1 .word { font-size: 132px; font-weight: 900; letter-spacing: -0.04em;
         background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
 
-      /* ---------- 메뉴바 (S2, S4 공용) ---------- */
+      /* ---------- 메뉴바 (S2 공용) ---------- */
       .menubar { position: absolute; top: 0; left: 0; right: 0; height: 64px; z-index: 3;
         background: rgba(20,22,34,0.86); backdrop-filter: blur(8px);
         display: flex; align-items: center; justify-content: flex-end; gap: 34px; padding: 0 40px; }
@@ -68,38 +69,97 @@
       .menubar .sizericon { width: 40px; height: 40px; border-radius: 10px; background: var(--grad);
         display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(99,102,241,0.5); }
       .menubar .sizericon svg { width: 24px; height: 24px; }
-      .popover { position: absolute; top: 78px; right: 34px; z-index: 4; width: 360px; padding: 18px; }
-      .popover .ph { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 24px; }
-      .popover .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 4px rgba(22,163,74,0.15); }
-      .popover .sub { color: var(--muted); font-size: 18px; margin-top: 2px; }
-      .popover .row { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 19px; }
-      .popover .row .ic { font-size: 20px; }
-      .popover .row .meta { color: var(--muted); font-size: 15px; }
 
-      /* ---------- S3 Finder ---------- */
-      #s3 .win { width: 1180px; height: 640px; overflow: hidden; }
-      .titlebar { height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 20px;
-        background: #f1f5f9; border-bottom: 1px solid var(--line); }
+      /* ---------- 통합 드롭·셸프 패널 (오른쪽 도킹) ---------- */
+      .panel { position: absolute; z-index: 4; display: flex; justify-content: flex-end;
+        width: 560px; height: 424px; color: #fff; overflow: hidden;
+        background: rgba(24,26,40,0.94); border: 1px solid rgba(255,255,255,0.14); border-right: none;
+        border-radius: 26px 0 0 26px; box-shadow: 0 40px 90px rgba(15,23,42,0.42); }
+      .panel .tray { flex: 0 0 514px; display: flex; flex-direction: column; }
+      .panel .handle { flex: 0 0 46px; border-left: 1px solid rgba(255,255,255,0.1);
+        display: flex; flex-direction: column; align-items: center; padding: 22px 0; gap: 16px; }
+      .panel .handle .hico { width: 30px; height: 30px; border-radius: 9px; background: var(--grad);
+        display: flex; align-items: center; justify-content: center; }
+      .panel .handle .hico svg { width: 18px; height: 18px; }
+      .panel .handle .hchev { color: rgba(255,255,255,0.42); font-size: 30px; font-weight: 900; line-height: 1; }
+      .panel .handle .hcount { margin-top: auto; width: 34px; height: 34px; border-radius: 50%;
+        background: var(--accent); color: #fff; font-weight: 900; font-size: 17px;
+        display: flex; align-items: center; justify-content: center; }
+      /* 상단 변환 드롭존 */
+      .pz-convert { margin: 22px; height: 120px; border-radius: 20px; border: 2px dashed rgba(255,255,255,0.24);
+        background: rgba(255,255,255,0.05); display: flex; align-items: center; gap: 18px; padding: 0 24px;
+        transition: none; }
+      .pz-convert.hot { border: 2px solid transparent;
+        background: linear-gradient(135deg, rgba(14,165,233,0.30), rgba(139,92,246,0.30));
+        box-shadow: 0 0 0 3px rgba(139,92,246,0.85), 0 12px 30px rgba(99,102,241,0.4); }
+      .pz-convert .pb { width: 62px; height: 62px; flex: 0 0 62px; border-radius: 16px; background: var(--grad);
+        display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(99,102,241,0.45); }
+      .pz-convert .pb svg { width: 32px; height: 32px; }
+      .pz-convert .pt1 { font-size: 26px; font-weight: 800; }
+      .pz-convert .pt2 { font-size: 18px; color: rgba(255,255,255,0.78); margin-top: 3px; }
+      .p-divider { height: 1px; background: rgba(255,255,255,0.1); margin: 0 22px; }
+      .pz-head { padding: 16px 24px 6px; font-size: 22px; font-weight: 800; display: flex; align-items: center; gap: 12px; }
+      .pz-head .cnt { font-size: 16px; font-weight: 700; background: rgba(255,255,255,0.16); padding: 4px 12px; border-radius: 999px; }
+      .pz-hold { flex: 1; padding: 8px 22px 22px; display: grid; grid-template-columns: repeat(3, 1fr);
+        grid-auto-rows: 96px; gap: 14px; align-content: start; }
+      .pz-hold .empty { grid-column: 1 / -1; align-self: center; text-align: center; color: rgba(255,255,255,0.5);
+        font-size: 19px; font-weight: 600; }
+      .p-card { border-radius: 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; position: relative; }
+      .p-card .pth { width: 84px; height: 46px; border-radius: 8px; }
+      .p-card .pth.vid { background: linear-gradient(135deg,#0ea5e9,#6366f1); }
+      .p-card .pth.res { background: linear-gradient(135deg,#16a34a,#22c55e); }
+      .p-card .pnm { font-size: 14px; color: rgba(255,255,255,0.74); }
+      .p-card .newbadge { position: absolute; top: -9px; right: -9px; background: #22c55e; color: #06280f;
+        font-weight: 900; font-size: 13px; padding: 4px 9px; border-radius: 999px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+
+      /* 드래그되는 파일 칩 + 커서 (S3/S5 공용) */
+      .dropfile { position: absolute; z-index: 6; }
+      .ghostcard { position: absolute; z-index: 7; width: 150px; height: 96px; border-radius: 14px;
+        background: rgba(38,42,66,0.96); border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 22px 54px rgba(15,23,42,0.5);
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #fff; }
+      .ghostcard .pth { width: 84px; height: 46px; border-radius: 8px; background: linear-gradient(135deg,#16a34a,#22c55e); }
+      .ghostcard .pnm { font-size: 14px; color: rgba(255,255,255,0.85); }
+      .cursor { position: absolute; z-index: 9; width: 42px; height: 42px; filter: drop-shadow(0 3px 5px rgba(15,23,42,0.4)); }
+
+      /* 단축키 키캡 (S2) */
+      .keycap { position: absolute; z-index: 7; display: flex; gap: 12px; align-items: center;
+        padding: 18px 24px; border-radius: 18px; background: rgba(15,17,28,0.94);
+        border: 1px solid rgba(255,255,255,0.16); box-shadow: 0 24px 60px rgba(15,23,42,0.5); }
+      .keycap .k { min-width: 60px; height: 60px; padding: 0 16px; border-radius: 14px;
+        background: linear-gradient(180deg,#30344c,#1c1e30); border: 1px solid rgba(255,255,255,0.16);
+        color: #fff; font-size: 32px; font-weight: 800; display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 0 rgba(0,0,0,0.45); }
+      .keycap .plus { color: rgba(255,255,255,0.5); font-size: 26px; font-weight: 700; }
+
+      /* 위치 칩 (S5) */
+      .poschip { position: absolute; z-index: 7; display: flex; align-items: center; gap: 14px;
+        padding: 16px 24px; border-radius: 18px; background: rgba(15,17,28,0.94);
+        border: 1px solid rgba(255,255,255,0.16); box-shadow: 0 24px 60px rgba(15,23,42,0.5); color: #fff; }
+      .poschip .pl { font-size: 22px; font-weight: 700; color: rgba(255,255,255,0.6); }
+      .poschip .opt { font-size: 24px; font-weight: 800; padding: 8px 18px; border-radius: 12px; color: rgba(255,255,255,0.5); }
+      .poschip .opt.sel { background: var(--grad); color: #fff; }
+
+      /* ---------- Finder 창 (S3/S5) ---------- */
+      .titlebar { height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 20px;
+        background: #f1f5f9; border-bottom: 1px solid var(--line); border-radius: 22px 22px 0 0; }
       .traffic { width: 14px; height: 14px; border-radius: 50%; }
-      .titlebar .path { margin-left: 16px; color: var(--muted); font-size: 20px; font-weight: 600; }
-      .filearea { position: relative; height: calc(640px - 56px); padding: 34px; }
-      .filelist { display: flex; flex-wrap: wrap; gap: 26px; align-content: flex-start; }
-      .filechip { width: 210px; height: 150px; border-radius: 16px; background: #f8fafc; border: 1px solid var(--line);
+      .titlebar .path { margin-left: 16px; color: #475569; font-size: 20px; font-weight: 600; }
+      .filearea { position: relative; padding: 30px; }
+      .filelist { display: flex; flex-wrap: wrap; gap: 24px; align-content: flex-start; }
+      .filechip { width: 190px; height: 138px; border-radius: 16px; background: #f8fafc; border: 1px solid var(--line);
         display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
-      .filechip .thumb { width: 92px; height: 60px; border-radius: 10px; }
+      .filechip .thumb { width: 92px; height: 58px; border-radius: 10px; }
       .filechip .thumb.vid { background: linear-gradient(135deg,#0ea5e9,#6366f1); position: relative; }
       .filechip .thumb.vid::after { content: ""; position: absolute; inset: 0; margin: auto; width: 0; height: 0;
         border-left: 20px solid #fff; border-top: 13px solid transparent; border-bottom: 13px solid transparent; transform: translateX(3px); }
-      .filechip .thumb.img { background: linear-gradient(135deg,#8b5cf6,#ec4899); position: relative; }
-      .filechip .thumb.img::after { content: ""; position: absolute; right: 12px; bottom: 12px; width: 22px; height: 22px;
-        border-radius: 50%; background: rgba(255,255,255,0.85); }
       .filechip .name { font-size: 17px; font-weight: 600; color: #334155; }
-      .dropfile { position: absolute; z-index: 6; }
-      .cursor { position: absolute; z-index: 7; width: 30px; height: 30px; }
+      .drophint { height: 220px; margin: 6px; border: 2px dashed var(--line); border-radius: 16px;
+        display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 22px; font-weight: 700; opacity: 0.7; }
 
       /* ---------- S4 결과 ---------- */
       #s4 { gap: 60px; }
-      .notif { position: absolute; top: 90px; right: 40px; z-index: 6; width: 420px; padding: 18px 20px;
+      .notif { position: absolute; top: 90px; right: 40px; z-index: 6; width: 440px; padding: 18px 20px;
         display: flex; align-items: center; gap: 16px; }
       .notif .badge { width: 46px; height: 46px; border-radius: 12px; background: var(--grad);
         display: flex; align-items: center; justify-content: center; }
@@ -119,25 +179,11 @@
         background: rgba(22,163,74,0.12); color: var(--ok); font-weight: 800; font-size: 26px; }
       .trim { width: 720px; padding: 30px 40px; }
       .trim .lbl { color: var(--muted); font-weight: 700; font-size: 22px; margin-bottom: 16px; }
-      .trim .track { display: flex; gap: 6px; height: 54px; }
-      .trim .seg { border-radius: 8px; }
+      .trim .track { display: flex; gap: 6px; height: 56px; }
+      .trim .seg { border-radius: 8px; position: relative; display: flex; align-items: center; justify-content: center; }
       .trim .move { background: var(--grad); flex: 1; }
-      .trim .still { background: repeating-linear-gradient(45deg,#e2e8f0,#e2e8f0 8px,#eef2f7 8px,#eef2f7 16px); }
-
-      /* ---------- S5 설정 ---------- */
-      #s5 .win { width: 1120px; height: 660px; overflow: hidden; }
-      .tabs { display: flex; gap: 8px; padding: 18px 26px 0; position: relative; }
-      .tab { padding: 12px 26px; font-size: 22px; font-weight: 700; color: var(--muted); border-radius: 10px 10px 0 0; }
-      .tab.active { color: var(--accent); }
-      .tabline { position: absolute; bottom: 0; height: 4px; border-radius: 4px; background: var(--grad); }
-      .form { padding: 34px 40px; display: flex; flex-direction: column; gap: 26px; border-top: 1px solid var(--line); }
-      .frow { display: flex; align-items: center; justify-content: space-between; font-size: 26px; }
-      .frow .k { font-weight: 700; }
-      .frow .v { color: var(--muted); font-weight: 600; }
-      .pill { padding: 8px 18px; border-radius: 999px; background: #eef2f7; font-weight: 700; font-size: 22px; color: #334155; }
-      .pill.grad { background: var(--grad); color: #fff; }
-      .toggle { width: 66px; height: 36px; border-radius: 999px; background: var(--ok); position: relative; }
-      .toggle::after { content: ""; position: absolute; top: 4px; left: 34px; width: 28px; height: 28px; border-radius: 50%; background: #fff; }
+      .trim .fast { background: repeating-linear-gradient(45deg,#6366f1,#6366f1 10px,#818cf8 10px,#818cf8 20px); }
+      .trim .ffb { color: #fff; font-weight: 900; font-size: 20px; text-shadow: 0 1px 5px rgba(15,23,42,0.5); }
 
       /* ---------- S6 아웃트로 ---------- */
       #s6 { flex-direction: column; gap: 26px; }
@@ -162,8 +208,8 @@
         <div class="word">Sizer</div>
       </section>
 
-      <!-- ===================== S2 가치/메뉴바 (4.5-9) ===================== -->
-      <section id="s2" class="scene clip" data-start="4.5" data-duration="4.5" data-track-index="1">
+      <!-- ===================== S2 패널·단축키 (4.5-9.5) ===================== -->
+      <section id="s2" class="scene clip" data-start="4.5" data-duration="5" data-track-index="1">
         <div class="menubar" id="s2-bar">
           <div class="sysicon"></div><div class="sysicon"></div>
           <div class="sizericon" id="s2-icon">
@@ -173,38 +219,73 @@
             </svg>
           </div>
         </div>
-        <div class="popover card" id="s2-pop">
-          <div class="ph"><span class="dot"></span> Sizer</div>
-          <div class="sub">감시 중 · Watching</div>
-          <div class="row"><span class="ic">✅</span> 화면기록.mov <span class="meta">333MB → 10MB</span></div>
-          <div class="row"><span class="ic">✅</span> 스크린샷.png <span class="meta">353KB → 88KB</span></div>
+        <!-- 오른쪽 가장자리 통합 패널 (접힘→펼침) -->
+        <div class="panel" id="s2-panel" style="right:0; top:50%; transform:translateY(-50%); width:46px;">
+          <div class="tray">
+            <div class="pz-convert">
+              <div class="pb"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="M8 11l4 4 4-4"/><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg></div>
+              <div><div class="pt1">드롭하여 변환</div><div class="pt2">영상·이미지</div></div>
+            </div>
+            <div class="p-divider"></div>
+            <div class="pz-head">파일 보관 <span class="cnt">0</span></div>
+            <div class="pz-hold"><div class="empty">여기에 파일을 모아 두세요</div></div>
+          </div>
+          <div class="handle">
+            <div class="hico"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></div>
+            <div class="hchev">‹</div>
+            <div class="hcount">0</div>
+          </div>
+        </div>
+        <!-- 전역 단축키 키캡 -->
+        <div class="keycap" id="s2-key" style="left:44%; top:50%; transform:translate(-50%,-50%);">
+          <span class="k">⌥</span><span class="plus">+</span><span class="k">⌘</span><span class="plus">+</span><span class="k">S</span>
         </div>
       </section>
 
-      <!-- ===================== S3 드롭 (9-14.5) ===================== -->
-      <section id="s3" class="scene clip" data-start="9" data-duration="5.5" data-track-index="1">
-        <div class="win card">
+      <!-- ===================== S3 드래그→변환 (9.5-15.5) ===================== -->
+      <section id="s3" class="scene clip" data-start="9.5" data-duration="6" data-track-index="1">
+        <!-- Finder 창 (왼쪽) -->
+        <div class="win card" id="s3-win" style="position:absolute; left:130px; top:250px; width:760px; height:470px;">
           <div class="titlebar">
             <span class="traffic" style="background:#ff5f57"></span>
             <span class="traffic" style="background:#febc2e"></span>
             <span class="traffic" style="background:#28c840"></span>
-            <span class="path">~/Movies/Sizer/drop</span>
+            <span class="path">Finder — 최근 항목</span>
           </div>
           <div class="filearea">
-            <div class="filelist" id="s3-list"></div>
-            <!-- 드래그되어 들어오는 파일 -->
-            <div class="dropfile filechip" id="s3-drop" style="left:34px; top:34px;">
-              <div class="thumb vid"></div><div class="name">화면기록.mov</div>
+            <div class="filelist">
+              <div class="filechip"><div class="thumb vid"></div><div class="name">화면기록.mov</div></div>
             </div>
-            <svg class="cursor" id="s3-cursor" style="left:150px; top:150px;" viewBox="0 0 24 24">
-              <path d="M4 2 L4 20 L9 15 L12 22 L15 21 L12 14 L19 14 Z" fill="#0f172a" stroke="#fff" stroke-width="1.5"/>
-            </svg>
           </div>
         </div>
+        <!-- 통합 패널 (오른쪽, 펼침) -->
+        <div class="panel" id="s3-panel" style="right:0; top:50%; transform:translateY(-50%);">
+          <div class="tray">
+            <div class="pz-convert" id="s3-zone">
+              <div class="pb"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="M8 11l4 4 4-4"/><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg></div>
+              <div><div class="pt1" id="s3-zt">드롭하여 변환</div><div class="pt2" id="s3-zs">영상·이미지</div></div>
+            </div>
+            <div class="p-divider"></div>
+            <div class="pz-head">파일 보관 <span class="cnt">0</span></div>
+            <div class="pz-hold"><div class="empty">여기에 파일을 모아 두세요</div></div>
+          </div>
+          <div class="handle">
+            <div class="hico"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></div>
+            <div class="hchev">‹</div>
+            <div class="hcount">0</div>
+          </div>
+        </div>
+        <!-- 끌리는 파일 + 커서 -->
+        <div class="dropfile filechip" id="s3-drag" style="left:280px; top:360px; opacity:0;">
+          <div class="thumb vid"></div><div class="name">화면기록.mov</div>
+        </div>
+        <svg class="cursor" id="s3-cur" style="left:340px; top:400px;" viewBox="0 0 24 24">
+          <path d="M4 2 L4 20 L9 15 L12 22 L15 21 L12 14 L19 14 Z" fill="#0f172a" stroke="#fff" stroke-width="1.5"/>
+        </svg>
       </section>
 
-      <!-- ===================== S4 결과 (14.5-21.5) ===================== -->
-      <section id="s4" class="scene clip" data-start="14.5" data-duration="7" data-track-index="1">
+      <!-- ===================== S4 결과·빨리감기 (15.5-21.5) ===================== -->
+      <section id="s4" class="scene clip" data-start="15.5" data-duration="6" data-track-index="1">
         <div>
           <div class="stat card">
             <div class="lbl">영상 · VIDEO</div>
@@ -218,36 +299,66 @@
           </div>
         </div>
         <div class="trim card">
-          <div class="lbl">정지 구간 자동 제거 · Auto-trim</div>
+          <div class="lbl">저모션 구간 빨리감기 · Fast-forward</div>
           <div class="track" id="s4-track">
             <div class="seg move" style="flex:2"></div>
-            <div class="seg still" id="st1" style="flex:3"></div>
+            <div class="seg fast" id="ff1" style="flex:3"><span class="ffb">»4×</span></div>
             <div class="seg move" style="flex:2"></div>
-            <div class="seg still" id="st2" style="flex:4"></div>
+            <div class="seg fast" id="ff2" style="flex:4"><span class="ffb">»4×</span></div>
             <div class="seg move" style="flex:2"></div>
           </div>
         </div>
       </section>
-      <div class="notif card clip" id="s4-notif" data-start="16.4" data-duration="5.1" data-track-index="4">
+      <div class="notif card clip" id="s4-notif" data-start="17.4" data-duration="4.1" data-track-index="4">
         <div class="badge">
           <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13 l4 4 L19 7"/></svg>
         </div>
         <div><div class="t">Sizer 변환 완료 ✅</div><div class="s">화면기록_resize.mp4 · 97% 절감</div></div>
       </div>
 
-      <!-- ===================== S5 설정 (21.5-26.5) ===================== -->
+      <!-- ===================== S5 셸프·좌우 (21.5-26.5) ===================== -->
       <section id="s5" class="scene clip" data-start="21.5" data-duration="5" data-track-index="1">
-        <div class="win card">
-          <div class="tabs">
-            <div class="tab active">일반</div><div class="tab">인코딩</div><div class="tab">트리밍</div><div class="tab">이미지</div>
-            <div class="tabline" id="s5-line" style="left:26px; width:96px;"></div>
+        <!-- 목적지 Finder 창 (왼쪽) -->
+        <div class="win card" id="s5-win" style="position:absolute; left:150px; top:300px; width:600px; height:400px;">
+          <div class="titlebar">
+            <span class="traffic" style="background:#ff5f57"></span>
+            <span class="traffic" style="background:#febc2e"></span>
+            <span class="traffic" style="background:#28c840"></span>
+            <span class="path">문서 — Projects</span>
           </div>
-          <div class="form">
-            <div class="frow"><span class="k">드롭 폴더</span><span class="v">~/Movies/Sizer/drop</span></div>
-            <div class="frow"><span class="k">코덱 · Codec</span><span class="pill">H.264 · CRF 26</span></div>
-            <div class="frow"><span class="k">이미지 포맷</span><span class="pill grad">AVIF</span></div>
-            <div class="frow"><span class="k">오래된 원본 자동 삭제</span><span class="toggle"></span></div>
+          <div class="filearea">
+            <div class="drophint" id="s5-dest">여기로 이동</div>
           </div>
+        </div>
+        <!-- 통합 패널 (오른쪽) · 보관 트레이에 결과 NEW 카드 -->
+        <div class="panel" id="s5-panel" style="right:0; top:50%; transform:translateY(-50%);">
+          <div class="tray">
+            <div class="pz-convert">
+              <div class="pb"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="M8 11l4 4 4-4"/><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg></div>
+              <div><div class="pt1">드롭하여 변환</div><div class="pt2">영상·이미지</div></div>
+            </div>
+            <div class="p-divider"></div>
+            <div class="pz-head">파일 보관 <span class="cnt" id="s5-cnt">1</span></div>
+            <div class="pz-hold">
+              <div class="p-card" id="s5-res"><span class="newbadge">NEW</span><div class="pth res"></div><div class="pnm">화면기록_resize.mp4</div></div>
+            </div>
+          </div>
+          <div class="handle">
+            <div class="hico"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></div>
+            <div class="hchev">‹</div>
+            <div class="hcount" id="s5-hcount">1</div>
+          </div>
+        </div>
+        <!-- 드래그 아웃되는 결과 카드(고스트) + 커서 -->
+        <div class="ghostcard" id="s5-ghost" style="left:1392px; top:566px; opacity:0;"><div class="pth"></div><div class="pnm">화면기록_resize.mp4</div></div>
+        <svg class="cursor" id="s5-cur" style="left:1470px; top:600px;" viewBox="0 0 24 24">
+          <path d="M4 2 L4 20 L9 15 L12 22 L15 21 L12 14 L19 14 Z" fill="#0f172a" stroke="#fff" stroke-width="1.5"/>
+        </svg>
+        <!-- 좌/우 위치 칩 -->
+        <div class="poschip" id="s5-pos" style="left:50%; bottom:216px; transform:translateX(-50%); opacity:0;">
+          <span class="pl">패널 위치</span>
+          <span class="opt">◧ 왼쪽</span>
+          <span class="opt sel">오른쪽 ◨</span>
         </div>
       </section>
 
@@ -262,14 +373,14 @@
       <!-- ===================== 자막 ===================== -->
       <div id="cap1" class="cap clip" data-start="0.4" data-duration="3.9" data-track-index="5">
         <div class="ko">고화질 그대로, 용량은 확 줄이기</div><div class="en">Same quality. Tiny size.</div></div>
-      <div id="cap2" class="cap clip" data-start="4.8" data-duration="3.9" data-track-index="5">
-        <div class="ko">macOS 메뉴바에서 영상·이미지 자동 변환</div><div class="en">Auto-convert video &amp; images, right from your menu bar</div></div>
-      <div id="cap3" class="cap clip" data-start="9.3" data-duration="4.9" data-track-index="5">
-        <div class="ko">드롭 폴더에 넣기만 하면 끝</div><div class="en">Just drop a file in — that's it</div></div>
-      <div id="cap4" class="cap clip" data-start="14.8" data-duration="6.4" data-track-index="5">
-        <div class="ko">정지 구간 자동 제거 + 고효율 인코딩</div><div class="en">Trims still parts, compresses smart</div></div>
-      <div id="cap5" class="cap clip" data-start="21.8" data-duration="4.4" data-track-index="5">
-        <div class="ko">폴더·포맷·품질 모두 설정 가능</div><div class="en">Folders, formats, quality — all configurable</div></div>
+      <div id="cap2" class="cap clip" data-start="4.9" data-duration="4.2" data-track-index="5">
+        <div class="ko">메뉴바 앱 · 어디서든 단축키로 패널 열기</div><div class="en">A menu-bar app — open the panel anywhere with a shortcut</div></div>
+      <div id="cap3" class="cap clip" data-start="9.9" data-duration="5.2" data-track-index="5">
+        <div class="ko">패널에 끌어다 놓으면 즉시 변환</div><div class="en">Drag onto the panel — instant convert</div></div>
+      <div id="cap4" class="cap clip" data-start="15.9" data-duration="5.2" data-track-index="5">
+        <div class="ko">저모션 구간 빨리감기 + 고효율 인코딩</div><div class="en">Fast-forwards low-motion parts, compresses smart</div></div>
+      <div id="cap5" class="cap clip" data-start="21.9" data-duration="4.2" data-track-index="5">
+        <div class="ko">결과는 셸프에서 원하는 곳으로 · 좌/우 배치</div><div class="en">Grab results from the shelf — dock left or right</div></div>
       <div id="cap6" class="cap clip" data-start="26.8" data-duration="3.0" data-track-index="5">
         <div class="ko">무료 · 오픈소스</div><div class="en">Free &amp; open source</div></div>
 
@@ -282,52 +393,64 @@
         tl.from("#s1 .logo", { scale: 0.7, opacity: 0, duration: 0.7, ease: "back.out(1.6)" }, 0.2);
         tl.from("#s1 .word", { y: 40, opacity: 0, duration: 0.6, ease: "power3.out" }, 0.6);
 
-        /* S2 (4.5-9) */
+        /* S2 (4.5-9.5) — 메뉴바 + 오른쪽 패널이 단축키로 펼쳐짐 */
         tl.from("#s2-bar", { y: -64, duration: 0.5, ease: "power3.out" }, 4.6);
         tl.from("#s2-icon", { scale: 0.4, opacity: 0, duration: 0.4, ease: "back.out(2)" }, 5.0);
-        tl.from("#s2-pop", { y: -16, opacity: 0, scale: 0.96, duration: 0.5, ease: "power3.out" }, 5.2);
-        tl.from("#s2-pop .row", { x: 14, opacity: 0, duration: 0.4, stagger: 0.14, ease: "power2.out" }, 5.6);
+        tl.from("#s2-panel", { opacity: 0, duration: 0.4, ease: "power2.out" }, 5.0);   // 접힌 탭 등장
+        tl.from("#s2-key", { scale: 0.8, opacity: 0, duration: 0.4, ease: "back.out(1.8)" }, 5.7);
+        tl.to("#s2-key .k", { y: 5, duration: 0.1, yoyo: true, repeat: 1, stagger: 0.05, ease: "power2.inOut" }, 6.3);  // 키 눌림
+        tl.to("#s2-panel", { width: 560, duration: 0.75, ease: "power3.inOut" }, 6.6);   // 왼쪽으로 펼침
+        tl.to("#s2-key", { opacity: 0, scale: 0.9, duration: 0.4, ease: "power2.in" }, 7.4);
 
-        /* S3 (9-14.5) — 창 등장 후 파일 드래그&드롭 */
-        tl.from("#s3 .win", { opacity: 0, y: 24, duration: 0.5, ease: "power3.out" }, 9.1);
-        // 커서+파일이 오른쪽에서 리스트로 이동 (transform x/y)
-        tl.fromTo("#s3-drop", { x: 1016, y: 26 }, { x: 0, y: 0, duration: 1.0, ease: "power2.inOut" }, 10.0);
-        tl.fromTo("#s3-cursor", { x: 1080, y: 60 }, { x: 0, y: 0, duration: 1.0, ease: "power2.inOut" }, 10.0);
-        // 드롭: 리스트에 실제 항목 추가되는 느낌 — drop 칩을 살짝 눌렀다 사라지고 목록 항목 등장
-        tl.to("#s3-drop", { scale: 0.9, duration: 0.12, yoyo: true, repeat: 1 }, 11.0);
-        tl.set("#s3-drop", { opacity: 0 }, 11.3);
-        tl.call(() => { const l = E("#s3-list"); if (l && !l.dataset.f1) { l.dataset.f1 = 1;
-          l.innerHTML = '<div class="filechip"><div class="thumb vid"></div><div class="name">화면기록.mov</div></div>'; } }, null, 11.3);
-        tl.from("#s3-list .filechip", { scale: 0.8, opacity: 0, duration: 0.4, ease: "back.out(1.6)" }, 11.3);
-        // 두번째(이미지) 파일이 커서 따라 들어옴
-        tl.call(() => { const l = E("#s3-list"); if (l && !l.dataset.f2) { l.dataset.f2 = 1;
-          l.insertAdjacentHTML("beforeend", '<div class="filechip" id="s3-img" style="opacity:0"><div class="thumb img"></div><div class="name">스크린샷.png</div></div>'); } }, null, 12.4);
-        tl.to("#s3-cursor", { x: 250, y: 0, duration: 0.7, ease: "power2.inOut" }, 12.4);
-        tl.fromTo("#s3-img", { scale: 0.8, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(1.6)" }, 12.9);
+        /* S3 (9.5-15.5) — Finder에서 파일을 패널 변환존으로 드래그&드롭 */
+        tl.from("#s3-win", { opacity: 0, x: -30, duration: 0.5, ease: "power3.out" }, 9.7);
+        tl.from("#s3-panel", { opacity: 0, x: 40, duration: 0.5, ease: "power3.out" }, 9.9);
+        tl.to("#s3-drag", { opacity: 1, duration: 0.2 }, 10.5);
+        tl.to("#s3-drag", { x: 1190, y: -4, duration: 1.3, ease: "power2.inOut" }, 10.7);   // 변환존 위로 (transform)
+        tl.to("#s3-cur", { x: 1200, y: 0, duration: 1.3, ease: "power2.inOut" }, 10.7);
+        // 변환존 위 호버 → 강조 + 라벨 변경
+        tl.call(() => { const z = E("#s3-zone"); if (z) z.classList.add("hot"); const t = E("#s3-zt"); if (t) t.textContent = "여기에 놓기"; const s = E("#s3-zs"); if (s) s.textContent = "놓으면 변환을 시작합니다"; }, null, 12.0);
+        // 드롭
+        tl.to("#s3-drag", { scale: 0.86, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.inOut" }, 12.5);
+        tl.to("#s3-drag", { opacity: 0, duration: 0.2 }, 12.8);
+        // 변환 시작 피드백
+        tl.call(() => { const t = E("#s3-zt"); if (t) t.textContent = "변환 중…"; const s = E("#s3-zs"); if (s) s.textContent = "화면기록.mov"; }, null, 13.0);
+        tl.fromTo("#s3-zone", { scale: 1.0 }, { scale: 1.03, duration: 0.3, yoyo: true, repeat: 1, ease: "power2.inOut" }, 13.0);
 
-        /* S4 (14.5-21.5) — 카운터 + 바 축소 + 정지구간 접힘 + 알림 */
-        tl.from("#s4 .stat", { y: 30, opacity: 0, duration: 0.5, ease: "power3.out" }, 14.7);
-        tl.from("#s4 .trim", { y: 30, opacity: 0, duration: 0.5, ease: "power3.out" }, 14.9);
-        // 숫자 카운트: 333 → 10 MB
+        /* S4 (15.5-21.5) — 카운터 + 바 축소 + 빨리감기 배지 + 알림 */
+        tl.from("#s4 .stat", { y: 30, opacity: 0, duration: 0.5, ease: "power3.out" }, 15.7);
+        tl.from("#s4 .trim", { y: 30, opacity: 0, duration: 0.5, ease: "power3.out" }, 15.9);
         const counter = { v: 333 };
         tl.to(counter, { v: 10, duration: 1.4, ease: "power2.inOut",
-          onUpdate: () => { const a = E("#s4-after"); if (a) a.textContent = Math.round(counter.v) + " MB"; } }, 15.4);
-        // 바 축소 (scaleX 1 → 0.03)
-        tl.fromTo("#s4-bar", { scaleX: 1 }, { scaleX: 0.03, duration: 1.4, ease: "power2.inOut" }, 15.4);
-        tl.from("#s4-save", { scale: 0.4, opacity: 0, duration: 0.4, ease: "back.out(2)" }, 16.8);
-        // 정지 구간(빗금)이 접혀 사라짐
-        tl.to("#st1", { flexGrow: 0.02, opacity: 0.2, duration: 0.5, ease: "power2.inOut" }, 17.6);
-        tl.to("#st2", { flexGrow: 0.02, opacity: 0.2, duration: 0.5, ease: "power2.inOut" }, 17.9);
-        // 알림 슬라이드 인
-        tl.from("#s4-notif", { x: 60, opacity: 0, duration: 0.5, ease: "power3.out" }, 16.5);
+          onUpdate: () => { const a = E("#s4-after"); if (a) a.textContent = Math.round(counter.v) + " MB"; } }, 16.4);
+        tl.fromTo("#s4-bar", { scaleX: 1 }, { scaleX: 0.03, duration: 1.4, ease: "power2.inOut" }, 16.4);
+        tl.from("#s4-save", { scale: 0.4, opacity: 0, duration: 0.4, ease: "back.out(2)" }, 17.8);
+        // 저모션 구간에 빨리감기 배지 등장 + 살짝 압축
+        tl.from("#s4 .trim .ffb", { scale: 0, opacity: 0, duration: 0.4, stagger: 0.16, ease: "back.out(2)" }, 18.0);
+        tl.to("#ff1", { flexGrow: 1.2, duration: 0.6, ease: "power2.inOut" }, 18.4);
+        tl.to("#ff2", { flexGrow: 1.6, duration: 0.6, ease: "power2.inOut" }, 18.6);
+        tl.from("#s4-notif", { x: 60, opacity: 0, duration: 0.5, ease: "power3.out" }, 17.5);
 
-        /* S5 (21.5-26.5) — 창 + 탭 하이라이트 이동 + 폼 등장 */
-        tl.from("#s5 .win", { y: 26, opacity: 0, duration: 0.5, ease: "power3.out" }, 21.7);
-        tl.from("#s5 .frow", { x: 18, opacity: 0, duration: 0.4, stagger: 0.16, ease: "power2.out" }, 22.1);
-        // 탭 밑줄이 일반→인코딩→이미지 순회 (transform x)
-        tl.to("#s5-line", { x: 104, duration: 0.4, ease: "power2.inOut" }, 23.4);
-        tl.to("#s5-line", { x: 336, duration: 0.4, ease: "power2.inOut" }, 24.4);
-        tl.to("#s5-line", { x: 0, duration: 0.4, ease: "power2.inOut" }, 25.4);
+        /* S5 (21.5-26.5) — 셸프의 결과 카드를 Finder로 드래그 아웃 + 좌/우 위치 */
+        tl.from("#s5-win", { opacity: 0, x: -30, duration: 0.5, ease: "power3.out" }, 21.7);
+        tl.from("#s5-panel", { opacity: 0, x: 40, duration: 0.5, ease: "power3.out" }, 21.8);
+        tl.from("#s5-res", { scale: 0.7, opacity: 0, duration: 0.4, ease: "back.out(1.6)" }, 22.2);
+        tl.from("#s5-res .newbadge", { scale: 0, duration: 0.35, ease: "back.out(2)" }, 22.55);
+        // 커서가 결과 카드로
+        tl.to("#s5-cur", { x: -50, y: -8, duration: 0.6, ease: "power2.inOut" }, 22.9);
+        // 그랩: 패널 안 카드 숨기고 고스트 표시
+        tl.set("#s5-res", { opacity: 0 }, 23.5);
+        tl.set("#s5-ghost", { opacity: 1 }, 23.5);
+        tl.call(() => { const h = E("#s5-hcount"); if (h) h.textContent = "0"; const c = E("#s5-cnt"); if (c) c.textContent = "0"; }, null, 23.55);
+        // 고스트 카드가 커서 따라 Finder로 이동
+        tl.to("#s5-ghost", { x: -962, y: -96, duration: 1.25, ease: "power2.inOut" }, 23.5);
+        tl.to("#s5-cur", { x: -970, y: -100, duration: 1.25, ease: "power2.inOut" }, 23.5);
+        // 목적지 강조
+        tl.to("#s5-dest", { borderColor: "#6366f1", color: "#6366f1", opacity: 1, duration: 0.3 }, 24.4);
+        tl.to("#s5-ghost", { opacity: 0, scale: 0.9, duration: 0.25, ease: "power2.in" }, 24.8);
+        // 좌/우 위치 칩 등장
+        tl.to("#s5-pos", { opacity: 1, duration: 0.01 }, 24.9);
+        tl.from("#s5-pos", { y: 22, duration: 0.5, ease: "power3.out" }, 24.9);
 
         /* S6 (26.5-30) */
         tl.from("#s6 .logo", { scale: 0.7, opacity: 0, duration: 0.6, ease: "back.out(1.6)" }, 26.7);

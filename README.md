@@ -5,17 +5,17 @@
 <h1 align="center">Sizer</h1>
 
 <p align="center">
-  macOS 메뉴바(트레이) 영상·이미지 변환 앱 — 드롭 폴더에 넣으면 <b>고화질 저용량</b>으로
-  변환하고, <b>움직임 없는(정지) 구간</b>을 잘라냅니다. 변환 엔진은 ffmpeg + macOS ImageIO입니다.
+  macOS 메뉴바(트레이) 영상·이미지 변환 앱 — 화면 가장자리 <b>드롭·셸프 패널</b>에 끌어다 놓으면
+  <b>고화질 저용량</b>으로 변환하고, <b>저모션 구간</b>은 빨리감기로 줄입니다. 변환 엔진은 ffmpeg + macOS ImageIO입니다.
 </p>
 
 <p align="center">
-  <a href="https://github.com/KunmyonChoi/sizer/releases/download/v1.0.0/sizer-tutorial.mp4">
+  <a href="https://github.com/KunmyonChoi/sizer/releases/download/v1.4.0/sizer-tutorial.mp4">
     <img src="tutorial/preview.gif" width="720" alt="Sizer 30초 튜토리얼">
   </a>
 </p>
 <p align="center">
-  <a href="https://github.com/KunmyonChoi/sizer/releases/download/v1.0.0/sizer-tutorial.mp4">▶ 30초 튜토리얼 영상 보기 (MP4 · 1080p)</a>
+  <a href="https://github.com/KunmyonChoi/sizer/releases/download/v1.4.0/sizer-tutorial.mp4">▶ 30초 튜토리얼 영상 보기 (MP4 · 1080p)</a>
 </p>
 
 > 기존 Python 백그라운드 워커(`watch_convert.py`)를 네이티브 SwiftUI 앱으로 개편한 버전입니다.
