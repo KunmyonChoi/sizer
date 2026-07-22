@@ -56,6 +56,7 @@ final class AppSettings: ObservableObject {
     @Published var pad: Double { didSet { save(pad, .pad) } }
     @Published var smoothTransitions: Bool { didSet { save(smoothTransitions, .smoothTransitions) } }
     @Published var minKeepRatio: Double { didSet { save(minKeepRatio, .minKeepRatio) } }
+    @Published var adaptiveThreshold: Bool { didSet { save(adaptiveThreshold, .adaptiveThreshold) } }   // 노이즈 콘텐츠 임계값 자동 완화
 
     // MARK: 이미지(캡처)
     @Published var imageConversionEnabled: Bool { didSet { save(imageConversionEnabled, .imageEnabled) } }
@@ -138,6 +139,7 @@ final class AppSettings: ObservableObject {
             outputSuffix: outputSuffix,
             stillMode: stillMode,
             trimOptions: trimOptions,
+            adaptiveThreshold: adaptiveThreshold,
             ffSpeed: ffSpeed,
             ffMinDuration: ffMinDuration,
             ffMuteAudio: ffMuteAudio,
@@ -205,6 +207,7 @@ final class AppSettings: ObservableObject {
         pad = defaults.object(forKey: Key.pad.rawValue) as? Double ?? 0.15
         smoothTransitions = defaults.object(forKey: Key.smoothTransitions.rawValue) as? Bool ?? false
         minKeepRatio = defaults.object(forKey: Key.minKeepRatio.rawValue) as? Double ?? 0.02
+        adaptiveThreshold = defaults.object(forKey: Key.adaptiveThreshold.rawValue) as? Bool ?? false
 
         imageConversionEnabled = defaults.object(forKey: Key.imageEnabled.rawValue) as? Bool ?? true
         imageFormatRaw = defaults.string(forKey: Key.imageFormat.rawValue) ?? ImageFormat.avif.rawValue
@@ -252,7 +255,7 @@ final class AppSettings: ObservableObject {
         case trimStill   // 레거시(마이그레이션용)
         case stillMode, ffSpeed, ffMinDuration, ffMuteAudio, ffBadge
         case sensitivity, stillNoiseDb, stillMinDuration
-        case mergeGapMax, minKeep, pad, smoothTransitions, minKeepRatio
+        case mergeGapMax, minKeep, pad, smoothTransitions, minKeepRatio, adaptiveThreshold
         case imageEnabled, imageFormat, imageQuality, imageMaxLongEdge
         case dropTargetShown, shelfShown, integratedDrop, addResultToShelf, shelfSide
         case shortcutKeyCode, shortcutModifiers, shortcutDisplay

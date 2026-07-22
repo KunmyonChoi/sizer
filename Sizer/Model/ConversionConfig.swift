@@ -20,6 +20,7 @@ struct ConversionConfig {
     // 정지/저모션 구간 처리
     var stillMode: StillMode
     var trimOptions: TrimOptions      // 감지(freeze) 파라미터 — trim/ff 공용
+    var adaptiveThreshold: Bool = false   // 노이즈 콘텐츠 시 임계값 자동 완화(검증된 안전 범위로 클램프)
     var ffSpeed: Int = 4              // 빨리감기 배속(2/4/8)
     var ffMinDuration: Double = 2.0   // 이 길이 이상 저모션 구간만 배속
     var ffMuteAudio: Bool = true      // 배속 구간 오디오 음소거

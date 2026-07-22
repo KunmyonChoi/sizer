@@ -43,12 +43,22 @@ enum ConversionEngine {
         var speedSegments: [SpeedSegment]? = nil
         var stillNote = ""
         if config.stillMode != .off && duration > 0 {
-            let freezes = FreezeDetector.detectFreezes(url: src, duration: duration, options: config.trimOptions)
+            var opts = config.trimOptions
+            // 적응형 임계값(opt-in): 노이즈 있는 콘텐츠면 검증된 안전 범위(-50dB)까지만 임계값 완화.
+            if config.adaptiveThreshold, let floor = FreezeDetector.noiseFloor(url: src) {
+                let adjusted = FreezeDetector.adaptiveNoiseDb(base: opts.noiseDb, floorMafd: floor)
+                if adjusted != opts.noiseDb {
+                    AppLogger.info(String(format: "적응형 임계값: 노이즈 floor %.3f → %.0fdB (%@)", floor, adjusted, name))
+                    opts.noiseDb = adjusted
+                }
+            }
+            let freezes = FreezeDetector.detectFreezes(url: src, duration: duration, options: opts)
             if !freezes.isEmpty {
                 switch config.stillMode {
                 case .trim:
+                    let scenes = FreezeDetector.detectSceneChanges(url: src)   // 장면 전환 병합 가드(정확도)
                     if let keep = SegmentPlanner.plan(freezes: freezes, duration: duration,
-                                                      options: config.trimOptions, sceneChanges: []) {
+                                                      options: opts, sceneChanges: scenes) {
                         speedSegments = keep.map { SpeedSegment($0.start, $0.end, speed: 1) }
                         let removed = duration - keep.totalDuration
                         stillNote = "정지 \(Int(removed))s 제거"
@@ -58,7 +68,7 @@ enum ConversionEngine {
                     }
                 case .fastForward:
                     if let segs = SegmentPlanner.planFastForward(freezes: freezes, duration: duration,
-                                                                 options: config.trimOptions,
+                                                                 options: opts,
                                                                  speed: Double(config.ffSpeed),
                                                                  minFF: config.ffMinDuration) {
                         speedSegments = segs
