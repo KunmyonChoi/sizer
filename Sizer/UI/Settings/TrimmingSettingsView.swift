@@ -26,6 +26,9 @@ struct TrimmingSettingsView: View {
                                   fmt: { "\(Int($0))dB" }, hint: "0에 가까울수록 공격적")
                     labeledSlider("최소 정지 길이(초)", $settings.stillMinDuration, 0.5...5, 0.5,
                                   fmt: { String(format: "%.1f", $0) })
+                    Toggle("적응형 임계값(노이즈 콘텐츠)", isOn: $settings.adaptiveThreshold)
+                    Text("노이즈가 있는 영상에서 정지 구간을 놓치지 않도록 임계값을 안전 범위 내에서 자동 완화합니다. 깨끗한 화면 녹화에는 영향 없음.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
             }
 
