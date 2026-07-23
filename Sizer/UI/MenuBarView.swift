@@ -83,8 +83,13 @@ struct MenuBarView: View {
                 .font(.system(size: 18))
                 .foregroundStyle(.tint)
             VStack(alignment: .leading, spacing: 1) {
-                Text("Sizer")
-                    .font(.headline)
+                HStack(spacing: 6) {
+                    Text("Sizer")
+                        .font(.headline)
+                    Text(AppInfo.shortVersion)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
                 Text(coordinator.status.label)
                     .font(.caption)
                     .foregroundStyle(.secondary)
