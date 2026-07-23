@@ -8,8 +8,8 @@ options:
 
 settings:
   base:
-    MARKETING_VERSION: "1.5.1"
-    CURRENT_PROJECT_VERSION: "7"
+    MARKETING_VERSION: "1.6.0"
+    CURRENT_PROJECT_VERSION: "8"
     SWIFT_VERSION: "5.0"
     CODE_SIGN_STYLE: Manual
     CODE_SIGN_IDENTITY: "-"          # ad-hoc (개인용 미공증 로컬 빌드)

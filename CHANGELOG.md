@@ -3,6 +3,14 @@
 이 프로젝트의 주요 변경 사항을 기록합니다. 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를
 따르며 [Semantic Versioning](https://semver.org/lang/ko/)을 사용합니다.
 
+## [1.6.0] - 2026-07-23
+
+### Added
+- **앱 아이콘** — Finder·응용 프로그램·Spotlight에서 기본(빈) 아이콘 대신 Sizer 아이콘이 표시됩니다.
+  로고 SVG로 생성한 `.icns`를 번들에 포함하며, 생성 스크립트(`scripts/make_icon.swift`)는 AppKit만 사용해
+  외부 도구 없이 동작합니다(Homebrew 소스 빌드에 추가 의존성 없음).
+- **버전 표시** — 메뉴바 팝오버 헤더(`v1.6.0`)와 설정 → 일반 → 정보(`1.6.0 (8)`)에서 확인할 수 있습니다.
+
 ## [1.5.1] - 2026-07-23
 
 ### Fixed
