@@ -27,7 +27,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var idleImage: NSImage? = symbolImage("arrow.down.right.and.arrow.up.left")
     private lazy var spinnerBase: NSImage? = symbolImage("arrow.triangle.2.circlepath")
 
+    /// 다른 Sizer 인스턴스가 이미 실행 중이면 false(호출자가 종료). 테스트 실행 중에는 가드하지 않는다.
+    ///
+    /// 인스턴스가 둘이면 각자 드롭 폴더를 감시해 **같은 파일을 동시에 변환**하고,
+    /// 같은 출력 경로로 인코딩해 결과물이 스트림 없는 깨진 파일이 된다(실제 사고 사례).
+    static func ensureSingleInstance() -> Bool {
+        // XCTest 호스트에서는 예외 — 설치본이 떠 있어도 테스트가 죽지 않도록.
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil { return true }
+        guard let bundleID = Bundle.main.bundleIdentifier else { return true }
+        let mine = ProcessInfo.processInfo.processIdentifier
+        let others = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+            .filter { $0.processIdentifier != mine && !$0.isTerminated }
+        guard let existing = others.first else { return true }
+
+        AppLogger.warn("이미 실행 중인 Sizer가 있어 이 인스턴스를 종료합니다(기존 PID \(existing.processIdentifier)).")
+        NSApp.setActivationPolicy(.regular)      // 경고창이 보이도록 잠시 일반 앱으로
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Sizer가 이미 실행 중입니다"
+        alert.informativeText = "두 개를 동시에 실행하면 같은 파일을 중복 변환해 결과물이 손상될 수 있습니다. 이 인스턴스는 종료합니다."
+        alert.addButton(withTitle: "확인")
+        alert.runModal()
+        return false
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // 중복 실행 방지: 인스턴스가 둘이면 같은 드롭 폴더를 동시에 처리해 결과물이 깨질 수 있다.
+        guard Self.ensureSingleInstance() else {
+            NSApp.terminate(nil)
+            return
+        }
+
         NSApp.setActivationPolicy(.accessory)   // Dock 아이콘 없음(메뉴바 전용)
 
         // 상태바 아이템
