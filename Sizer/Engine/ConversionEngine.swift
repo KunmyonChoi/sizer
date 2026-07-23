@@ -34,7 +34,7 @@ enum ConversionEngine {
         }
 
         let dst = uniqueOutputPath(for: src, config: config)
-        let tmp = dst.appendingPathExtension("part")
+        let tmp = tempOutputURL(for: dst)
 
         let hasAudio = Probe.hasAudio(src)
         let duration = Probe.duration(src)
@@ -142,7 +142,7 @@ enum ConversionEngine {
         let origSize = fileSize(src)
 
         let dst = uniqueImageOutputPath(for: src, config: config)
-        let tmp = dst.appendingPathExtension("part")
+        let tmp = tempOutputURL(for: dst)
 
         AppLogger.info("이미지 변환 시작: \(name) (\(humanSize(origSize))) → \(config.imageFormat.fileExtension)")
         let result = ImageConverter.convert(
@@ -180,6 +180,14 @@ enum ConversionEngine {
             Notifier.notify(title: "이미지 변환 완료 ✅", body: dst.lastPathComponent, subtitle: detail)
         }
         return JobOutcome(sourceName: name, outputName: dst.lastPathComponent, outputURL: dst, kind: .image, success: true, detail: detail)
+    }
+
+    /// 인코딩 중 쓰는 임시 파일 경로. **실행마다 고유해야 한다.**
+    /// 결정적 경로(`dst + .part`)를 쓰면 인스턴스가 둘 이상일 때 두 ffmpeg가 같은 파일에 동시 기록해
+    /// 결과물이 스트림 없는 깨진 파일이 된다(실제 사고 사례). 출력 폴더 내 숨김 파일이라 이동은 같은 볼륨 rename.
+    static func tempOutputURL(for dst: URL) -> URL {
+        dst.deletingLastPathComponent()
+            .appendingPathComponent(".sizer-\(UUID().uuidString).part")
     }
 
     private static func uniqueImageOutputPath(for src: URL, config: ConversionConfig) -> URL {
