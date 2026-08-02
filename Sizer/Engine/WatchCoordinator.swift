@@ -13,6 +13,7 @@ final class WatchCoordinator: ObservableObject {
     @Published private(set) var ffmpegAvailable: Bool = FFmpeg.isAvailable
     @Published private(set) var dropTargetVisible: Bool = false
     @Published private(set) var shelfVisible: Bool = false
+    @Published private(set) var keepAwake: Bool = false   // 모니터 꺼짐 방지 상태(실행 중에만 유지)
 
     let settings: AppSettings
 
@@ -25,6 +26,8 @@ final class WatchCoordinator: ObservableObject {
     private let snapLeftHotKey = GlobalHotKey()       // 창 스냅: 좌측 반
     private let snapRightHotKey = GlobalHotKey()      // 창 스냅: 우측 반
     private let snapMaxHotKey = GlobalHotKey()        // 창 스냅: 최대화
+    private let wakeGuard = WakeGuard()               // 모니터 꺼짐 방지
+    private let keepAwakeHotKey = GlobalHotKey()      // 모니터 꺼짐 방지 전환
     private var active: Set<String> = []       // 큐잉/변환 중인 파일 경로
     private var paused = false
     private var cancellables: Set<AnyCancellable> = []
@@ -73,6 +76,17 @@ final class WatchCoordinator: ObservableObject {
         snapRightHotKey.onFire = { WindowSnapper.snap(.rightHalf) }
         snapMaxHotKey.onFire = { WindowSnapper.snap(.maximize) }
         updateSnapHotKeys()
+        keepAwakeHotKey.onFire = { [weak self] in self?.toggleKeepAwake() }
+        updateKeepAwakeHotKey()
+    }
+
+    /// 모니터 꺼짐 방지 켜기/끄기. 트레이 아이콘·메뉴가 상태를 반영한다.
+    func toggleKeepAwake() {
+        keepAwake = wakeGuard.toggle()
+    }
+
+    private func updateKeepAwakeHotKey() {
+        keepAwakeHotKey.update(keyCode: settings.keepAwakeKeyCode, cocoaModifiers: settings.keepAwakeModifiers)
     }
 
     private func updateHotKey() {
@@ -232,6 +246,14 @@ final class WatchCoordinator: ObservableObject {
             .debounce(for: .milliseconds(50), scheduler: RunLoop.main)
             .sink { [weak self] in
                 Task { @MainActor in self?.updateSnapHotKeys() }
+            }
+            .store(in: &cancellables)
+
+        Publishers.CombineLatest(settings.$keepAwakeKeyCode, settings.$keepAwakeModifiers)
+            .dropFirst()
+            .removeDuplicates { $0 == $1 }
+            .sink { [weak self] _ in
+                Task { @MainActor in self?.updateKeepAwakeHotKey() }
             }
             .store(in: &cancellables)
     }
@@ -409,6 +431,7 @@ final class WatchCoordinator: ObservableObject {
     }
 
     func quit() {
+        wakeGuard.disable()
         NSApp.terminate(nil)
     }
 }

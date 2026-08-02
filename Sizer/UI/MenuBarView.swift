@@ -57,6 +57,12 @@ struct MenuBarView: View {
             ) {
                 coordinator.togglePause()
             }
+            MenuActionRow(
+                title: coordinator.keepAwake ? "모니터 꺼짐 방지 끄기" : "모니터 꺼짐 방지",
+                systemImage: coordinator.keepAwake ? "sun.max.fill" : "sun.max"
+            ) {
+                coordinator.toggleKeepAwake()
+            }
             MenuActionRow(title: "설정…", systemImage: "gearshape") {
                 coordinator.openSettings()
             }
