@@ -25,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var spinAngle: CGFloat = 0
 
     private lazy var idleImage: NSImage? = symbolImage("arrow.down.right.and.arrow.up.left")
+    private lazy var awakeImage: NSImage? = symbolImage("sun.max.fill")
     private lazy var spinnerBase: NSImage? = symbolImage("arrow.triangle.2.circlepath")
 
     /// 다른 Sizer 인스턴스가 이미 실행 중이면 false(호출자가 종료). 테스트 실행 중에는 가드하지 않는다.
@@ -86,6 +87,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [weak self] status in self?.updateIcon(for: status) }
             .store(in: &cancellables)
 
+        // 모니터 꺼짐 방지 상태 → 유휴 아이콘 갱신
+        coordinator.$keepAwake
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.refreshIdleIcon() }
+            .store(in: &cancellables)
+
         coordinator.start()
     }
 
@@ -126,7 +133,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         spinTimer?.invalidate()
         spinTimer = nil
         spinAngle = 0
-        statusItem.button?.image = idleImage
+        refreshIdleIcon()
+    }
+
+    /// 변환 중이 아닐 때의 아이콘: 모니터 꺼짐 방지가 켜져 있으면 sun.max.fill, 아니면 기본 아이콘.
+    private func refreshIdleIcon() {
+        guard spinTimer == nil else { return }   // 변환 애니메이션 중이면 건드리지 않음
+        statusItem.button?.image = coordinator.keepAwake ? awakeImage : idleImage
     }
 
     // MARK: 이미지 헬퍼

@@ -46,6 +46,11 @@ final class AppSettings: ObservableObject {
     @Published var snapMaxModifiers: Int { didSet { save(snapMaxModifiers, .snapMaxModifiers) } }
     @Published var snapMaxDisplay: String { didSet { save(snapMaxDisplay, .snapMaxDisplay) } }
 
+    // MARK: 모니터 꺼짐 방지(전환 단축키. 상태 자체는 실행 중에만 유지되고 저장하지 않음)
+    @Published var keepAwakeKeyCode: Int { didSet { save(keepAwakeKeyCode, .keepAwakeKeyCode) } }
+    @Published var keepAwakeModifiers: Int { didSet { save(keepAwakeModifiers, .keepAwakeModifiers) } }
+    @Published var keepAwakeDisplay: String { didSet { save(keepAwakeDisplay, .keepAwakeDisplay) } }
+
     // MARK: 인코딩
     @Published var videoCodecRaw: String { didSet { save(videoCodecRaw, .videoCodec) } }
     @Published var crf: Int { didSet { save(crf, .crf) } }
@@ -158,6 +163,20 @@ final class AppSettings: ObservableObject {
 
     func clearSnapShortcut(_ a: SnapPosition) {
         setSnapShortcut(a, keyCode: 0, modifiers: 0, display: "")
+    }
+
+    // MARK: 모니터 꺼짐 방지 단축키 접근자
+
+    var keepAwakeHasShortcut: Bool { keepAwakeKeyCode != 0 || keepAwakeModifiers != 0 }
+
+    func setKeepAwakeShortcut(keyCode: Int, modifiers: Int, display: String) {
+        keepAwakeKeyCode = keyCode
+        keepAwakeModifiers = modifiers
+        keepAwakeDisplay = display
+    }
+
+    func clearKeepAwakeShortcut() {
+        setKeepAwakeShortcut(keyCode: 0, modifiers: 0, display: "")
     }
 
     var dropFolderURL: URL { URL(fileURLWithPath: dropFolderPath, isDirectory: true) }
@@ -289,6 +308,11 @@ final class AppSettings: ObservableObject {
         snapMaxModifiers = defaults.object(forKey: Key.snapMaxModifiers.rawValue) as? Int ?? 786432
         snapMaxDisplay = defaults.string(forKey: Key.snapMaxDisplay.rawValue) ?? "⌃⌥↩"
 
+        // 모니터 꺼짐 방지: 전환 단축키는 기본 없음(사용자가 지정).
+        keepAwakeKeyCode = defaults.object(forKey: Key.keepAwakeKeyCode.rawValue) as? Int ?? 0
+        keepAwakeModifiers = defaults.object(forKey: Key.keepAwakeModifiers.rawValue) as? Int ?? 0
+        keepAwakeDisplay = defaults.string(forKey: Key.keepAwakeDisplay.rawValue) ?? ""
+
         dropTargetShown = defaults.object(forKey: Key.dropTargetShown.rawValue) as? Bool ?? true   // 기본 보이기(분리 모드에서만 의미)
         // 통합 모드에선 셸프가 드롭 표면이므로 기본 표시, 분리 모드에선 기본 감춤.
         if let shown = defaults.object(forKey: Key.shelfShown.rawValue) as? Bool {
@@ -330,6 +354,7 @@ final class AppSettings: ObservableObject {
         case snapLeftKeyCode, snapLeftModifiers, snapLeftDisplay
         case snapRightKeyCode, snapRightModifiers, snapRightDisplay
         case snapMaxKeyCode, snapMaxModifiers, snapMaxDisplay
+        case keepAwakeKeyCode, keepAwakeModifiers, keepAwakeDisplay
     }
 
     private func save(_ value: Any, _ key: Key) {
