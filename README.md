@@ -77,9 +77,14 @@ sizer
 소스에서 **로컬 빌드**되므로 Apple 개발자 등록/공증 없이도 **Gatekeeper 경고 없이** 설치됩니다
 (빌드에 Xcode, 변환에 ffmpeg가 필요하며 ffmpeg는 자동 설치됩니다).
 
+> ℹ️ **`brew install` 만으로는 `/Applications`에 등록되지 않습니다.** Homebrew 소스 빌드(formula)는 설치 샌드박스가
+> `/Applications` 쓰기를 막기 때문입니다(우회 불가). 아래 **`sizer` 명령이 최초 1회에 링크를 만들어** 해결합니다.
+
 설치 후 **`sizer` 명령으로 실행**합니다. 이 명령은 앱을 실행하면서 **최초 1회 `/Applications`(권한이 없으면
 `~/Applications`)에 `Sizer.app` 링크를 자동 생성**하므로, 이후에는 Spotlight·런치패드나 `open -a Sizer`로도
 열 수 있습니다. 실행되면 **메뉴바에 아이콘**이 나타납니다(Dock 아이콘 없음, `LSUIElement`).
+
+링크만 만들고 실행은 원치 않으면: `ln -sfn $(brew --prefix)/opt/sizer/Sizer.app /Applications/Sizer.app`
 
 - 이미 설치돼 있다면 최신으로 업데이트: `brew upgrade sizer`
 - 최신 개발 버전: `brew install --HEAD KunmyonChoi/tap/sizer`
