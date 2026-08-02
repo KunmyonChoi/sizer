@@ -3,6 +3,14 @@
 이 프로젝트의 주요 변경 사항을 기록합니다. 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를
 따르며 [Semantic Versioning](https://semver.org/lang/ko/)을 사용합니다.
 
+## [1.8.0] - 2026-08-02
+
+### Added
+- **모니터 꺼짐 방지** — 켜 두면 화면이 자동으로 꺼지거나 절전되지 않습니다(발표·긴 다운로드·모니터링 등).
+  메뉴바에서 토글하고(켜짐 시 트레이 아이콘이 ☀️로 바뀜), 설정 → 일반에서 **전환 단축키**도 지정할 수 있습니다.
+  IOKit 전원 어서션(`kIOPMAssertionTypePreventUserIdleDisplaySleep`) 기반이라 **별도 권한이 필요 없고**
+  `caffeinate` 서브프로세스도 쓰지 않습니다. 기본 꺼짐이며 앱을 끄면 자동 해제됩니다.
+
 ## [1.7.0] - 2026-08-02
 
 ### Added
