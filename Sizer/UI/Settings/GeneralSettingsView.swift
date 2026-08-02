@@ -51,7 +51,12 @@ struct GeneralSettingsView: View {
                     Text("오른쪽").tag(ShelfSide.right.rawValue)
                 }
                 LabeledContent("패널 열기/닫기 단축키") {
-                    ShortcutRecorder()
+                    ShortcutRecorder(
+                        display: settings.shortcutDisplay,
+                        hasShortcut: settings.hasShortcut,
+                        onCapture: { settings.setShortcut(keyCode: $0, modifiers: $1, display: $2) },
+                        onClear: { settings.clearShortcut() }
+                    )
                 }
                 Text("어디서든 이 단축키로 패널을 열고 닫습니다. 접근성 권한이 필요 없습니다.")
                     .font(.caption)

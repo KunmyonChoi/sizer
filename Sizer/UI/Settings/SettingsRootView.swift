@@ -22,6 +22,11 @@ struct SettingsRootView: View {
                 .tabItem {
                     Label("이미지", systemImage: "photo")
                 }
+
+            WindowSnapSettingsView()
+                .tabItem {
+                    Label("창 스냅", systemImage: "rectangle.split.2x1")
+                }
         }
         .frame(width: 480, height: 440)
     }
