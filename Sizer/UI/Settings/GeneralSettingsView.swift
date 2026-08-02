@@ -4,14 +4,6 @@ struct GeneralSettingsView: View {
     @EnvironmentObject var coordinator: WatchCoordinator
     @EnvironmentObject var settings: AppSettings
 
-    /// 모니터 꺼짐 방지 상태는 코디네이터가 소유(실행 중에만 유지). 값이 바뀔 때만 토글.
-    private var keepAwakeBinding: Binding<Bool> {
-        Binding(
-            get: { coordinator.keepAwake },
-            set: { on in if on != coordinator.keepAwake { coordinator.toggleKeepAwake() } }
-        )
-    }
-
     var body: some View {
         Form {
             Section("폴더") {
@@ -41,21 +33,6 @@ struct GeneralSettingsView: View {
                 Toggle("로그인 시 자동 시작", isOn: $settings.launchAtLogin)
                 Toggle("변환 완료·실패 알림 표시", isOn: $settings.notificationsEnabled)
                 Toggle("드롭 타겟 변환 후 출력 폴더 열기", isOn: $settings.openOutputAfterDrop)
-            }
-
-            Section("모니터 꺼짐 방지") {
-                Toggle("지금 켜기", isOn: keepAwakeBinding)
-                Text("켜져 있는 동안 화면이 자동으로 꺼지거나 절전되지 않습니다. 메뉴바에서도 켤 수 있고, 앱을 끄면 해제됩니다.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                LabeledContent("전환 단축키") {
-                    ShortcutRecorder(
-                        display: settings.keepAwakeDisplay,
-                        hasShortcut: settings.keepAwakeHasShortcut,
-                        onCapture: { settings.setKeepAwakeShortcut(keyCode: $0, modifiers: $1, display: $2) },
-                        onClear: { settings.clearKeepAwakeShortcut() }
-                    )
-                }
             }
 
             Section("드롭 & 셸프") {
