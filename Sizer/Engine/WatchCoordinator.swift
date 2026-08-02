@@ -22,6 +22,9 @@ final class WatchCoordinator: ObservableObject {
     private var dropTargetPending: Set<String> = []   // 드롭 타겟으로 넣어 변환 대기 중인 파일명
     private var openOutputWork: DispatchWorkItem?
     private let hotKey = GlobalHotKey()               // 전역 단축키(패널 열기/닫기)
+    private let snapLeftHotKey = GlobalHotKey()       // 창 스냅: 좌측 반
+    private let snapRightHotKey = GlobalHotKey()      // 창 스냅: 우측 반
+    private let snapMaxHotKey = GlobalHotKey()        // 창 스냅: 최대화
     private var active: Set<String> = []       // 큐잉/변환 중인 파일 경로
     private var paused = false
     private var cancellables: Set<AnyCancellable> = []
@@ -66,10 +69,27 @@ final class WatchCoordinator: ObservableObject {
         restoreDropTarget()
         hotKey.onFire = { [weak self] in self?.toggleShelf() }
         updateHotKey()
+        snapLeftHotKey.onFire = { WindowSnapper.snap(.leftHalf) }
+        snapRightHotKey.onFire = { WindowSnapper.snap(.rightHalf) }
+        snapMaxHotKey.onFire = { WindowSnapper.snap(.maximize) }
+        updateSnapHotKeys()
     }
 
     private func updateHotKey() {
         hotKey.update(keyCode: settings.shortcutKeyCode, cocoaModifiers: settings.shortcutModifiers)
+    }
+
+    /// 창 스냅 단축키를 (재)등록. 스냅 사용이 꺼져 있으면 모두 해제.
+    private func updateSnapHotKeys() {
+        guard settings.windowSnapEnabled else {
+            snapLeftHotKey.unregister()
+            snapRightHotKey.unregister()
+            snapMaxHotKey.unregister()
+            return
+        }
+        snapLeftHotKey.update(keyCode: settings.snapLeftKeyCode, cocoaModifiers: settings.snapLeftModifiers)
+        snapRightHotKey.update(keyCode: settings.snapRightKeyCode, cocoaModifiers: settings.snapRightModifiers)
+        snapMaxHotKey.update(keyCode: settings.snapMaxKeyCode, cocoaModifiers: settings.snapMaxModifiers)
     }
 
     // MARK: 플로팅 드롭 타겟
@@ -195,6 +215,23 @@ final class WatchCoordinator: ObservableObject {
             .removeDuplicates { $0 == $1 }
             .sink { [weak self] _ in
                 Task { @MainActor in self?.updateHotKey() }
+            }
+            .store(in: &cancellables)
+
+        // 창 스냅: 사용 여부/단축키 중 무엇이든 바뀌면 재등록(연달아 오는 변경은 디바운스로 합침).
+        let snapTriggers: [AnyPublisher<Void, Never>] = [
+            settings.$windowSnapEnabled.map { _ in () }.eraseToAnyPublisher(),
+            settings.$snapLeftKeyCode.map { _ in () }.eraseToAnyPublisher(),
+            settings.$snapLeftModifiers.map { _ in () }.eraseToAnyPublisher(),
+            settings.$snapRightKeyCode.map { _ in () }.eraseToAnyPublisher(),
+            settings.$snapRightModifiers.map { _ in () }.eraseToAnyPublisher(),
+            settings.$snapMaxKeyCode.map { _ in () }.eraseToAnyPublisher(),
+            settings.$snapMaxModifiers.map { _ in () }.eraseToAnyPublisher(),
+        ]
+        Publishers.MergeMany(snapTriggers)
+            .debounce(for: .milliseconds(50), scheduler: RunLoop.main)
+            .sink { [weak self] in
+                Task { @MainActor in self?.updateSnapHotKeys() }
             }
             .store(in: &cancellables)
     }

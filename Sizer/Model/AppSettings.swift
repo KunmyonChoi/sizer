@@ -34,6 +34,18 @@ final class AppSettings: ObservableObject {
     @Published var shortcutModifiers: Int { didSet { save(shortcutModifiers, .shortcutModifiers) } }  // NSEvent.ModifierFlags rawValue
     @Published var shortcutDisplay: String { didSet { save(shortcutDisplay, .shortcutDisplay) } }     // 표시용(예 "⌥⌘S")
 
+    // MARK: 창 스냅(윈도우 타일링)
+    @Published var windowSnapEnabled: Bool { didSet { save(windowSnapEnabled, .windowSnapEnabled) } }
+    @Published var snapLeftKeyCode: Int { didSet { save(snapLeftKeyCode, .snapLeftKeyCode) } }
+    @Published var snapLeftModifiers: Int { didSet { save(snapLeftModifiers, .snapLeftModifiers) } }
+    @Published var snapLeftDisplay: String { didSet { save(snapLeftDisplay, .snapLeftDisplay) } }
+    @Published var snapRightKeyCode: Int { didSet { save(snapRightKeyCode, .snapRightKeyCode) } }
+    @Published var snapRightModifiers: Int { didSet { save(snapRightModifiers, .snapRightModifiers) } }
+    @Published var snapRightDisplay: String { didSet { save(snapRightDisplay, .snapRightDisplay) } }
+    @Published var snapMaxKeyCode: Int { didSet { save(snapMaxKeyCode, .snapMaxKeyCode) } }
+    @Published var snapMaxModifiers: Int { didSet { save(snapMaxModifiers, .snapMaxModifiers) } }
+    @Published var snapMaxDisplay: String { didSet { save(snapMaxDisplay, .snapMaxDisplay) } }
+
     // MARK: 인코딩
     @Published var videoCodecRaw: String { didSet { save(videoCodecRaw, .videoCodec) } }
     @Published var crf: Int { didSet { save(crf, .crf) } }
@@ -104,6 +116,48 @@ final class AppSettings: ObservableObject {
         shortcutKeyCode = 0
         shortcutModifiers = 0
         shortcutDisplay = ""
+    }
+
+    // MARK: 창 스냅 단축키 접근자
+
+    func snapKeyCode(_ a: SnapPosition) -> Int {
+        switch a {
+        case .leftHalf:  return snapLeftKeyCode
+        case .rightHalf: return snapRightKeyCode
+        case .maximize:  return snapMaxKeyCode
+        }
+    }
+
+    func snapModifiers(_ a: SnapPosition) -> Int {
+        switch a {
+        case .leftHalf:  return snapLeftModifiers
+        case .rightHalf: return snapRightModifiers
+        case .maximize:  return snapMaxModifiers
+        }
+    }
+
+    func snapDisplay(_ a: SnapPosition) -> String {
+        switch a {
+        case .leftHalf:  return snapLeftDisplay
+        case .rightHalf: return snapRightDisplay
+        case .maximize:  return snapMaxDisplay
+        }
+    }
+
+    func snapHasShortcut(_ a: SnapPosition) -> Bool {
+        snapKeyCode(a) != 0 || snapModifiers(a) != 0
+    }
+
+    func setSnapShortcut(_ a: SnapPosition, keyCode: Int, modifiers: Int, display: String) {
+        switch a {
+        case .leftHalf:  snapLeftKeyCode = keyCode;  snapLeftModifiers = modifiers;  snapLeftDisplay = display
+        case .rightHalf: snapRightKeyCode = keyCode; snapRightModifiers = modifiers; snapRightDisplay = display
+        case .maximize:  snapMaxKeyCode = keyCode;   snapMaxModifiers = modifiers;   snapMaxDisplay = display
+        }
+    }
+
+    func clearSnapShortcut(_ a: SnapPosition) {
+        setSnapShortcut(a, keyCode: 0, modifiers: 0, display: "")
     }
 
     var dropFolderURL: URL { URL(fileURLWithPath: dropFolderPath, isDirectory: true) }
@@ -222,6 +276,19 @@ final class AppSettings: ObservableObject {
         shortcutModifiers = defaults.object(forKey: Key.shortcutModifiers.rawValue) as? Int ?? 0
         shortcutDisplay = defaults.string(forKey: Key.shortcutDisplay.rawValue) ?? ""
 
+        // 창 스냅: 기본 켬. 기본 단축키는 Rectangle과 동일한 ⌃⌥←/→/↩.
+        // (⌃←/⌃→는 macOS 스페이스 전환과 충돌 → 여기에 ⌥를 더해 회피. 수정키 rawValue 786432 = control|option)
+        windowSnapEnabled = defaults.object(forKey: Key.windowSnapEnabled.rawValue) as? Bool ?? true
+        snapLeftKeyCode = defaults.object(forKey: Key.snapLeftKeyCode.rawValue) as? Int ?? 123   // ←
+        snapLeftModifiers = defaults.object(forKey: Key.snapLeftModifiers.rawValue) as? Int ?? 786432
+        snapLeftDisplay = defaults.string(forKey: Key.snapLeftDisplay.rawValue) ?? "⌃⌥←"
+        snapRightKeyCode = defaults.object(forKey: Key.snapRightKeyCode.rawValue) as? Int ?? 124  // →
+        snapRightModifiers = defaults.object(forKey: Key.snapRightModifiers.rawValue) as? Int ?? 786432
+        snapRightDisplay = defaults.string(forKey: Key.snapRightDisplay.rawValue) ?? "⌃⌥→"
+        snapMaxKeyCode = defaults.object(forKey: Key.snapMaxKeyCode.rawValue) as? Int ?? 36       // ↩
+        snapMaxModifiers = defaults.object(forKey: Key.snapMaxModifiers.rawValue) as? Int ?? 786432
+        snapMaxDisplay = defaults.string(forKey: Key.snapMaxDisplay.rawValue) ?? "⌃⌥↩"
+
         dropTargetShown = defaults.object(forKey: Key.dropTargetShown.rawValue) as? Bool ?? true   // 기본 보이기(분리 모드에서만 의미)
         // 통합 모드에선 셸프가 드롭 표면이므로 기본 표시, 분리 모드에선 기본 감춤.
         if let shown = defaults.object(forKey: Key.shelfShown.rawValue) as? Bool {
@@ -259,6 +326,10 @@ final class AppSettings: ObservableObject {
         case imageEnabled, imageFormat, imageQuality, imageMaxLongEdge
         case dropTargetShown, shelfShown, integratedDrop, addResultToShelf, shelfSide
         case shortcutKeyCode, shortcutModifiers, shortcutDisplay
+        case windowSnapEnabled
+        case snapLeftKeyCode, snapLeftModifiers, snapLeftDisplay
+        case snapRightKeyCode, snapRightModifiers, snapRightDisplay
+        case snapMaxKeyCode, snapMaxModifiers, snapMaxDisplay
     }
 
     private func save(_ value: Any, _ key: Key) {
