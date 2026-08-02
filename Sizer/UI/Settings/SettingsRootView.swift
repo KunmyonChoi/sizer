@@ -27,7 +27,12 @@ struct SettingsRootView: View {
                 .tabItem {
                     Label("창 스냅", systemImage: "rectangle.split.2x1")
                 }
+
+            KeepAwakeSettingsView()
+                .tabItem {
+                    Label("꺼짐 방지", systemImage: "sun.max")
+                }
         }
-        .frame(width: 480, height: 440)
+        .frame(width: 520, height: 440)
     }
 }

@@ -58,7 +58,13 @@ struct MenuBarView: View {
                 coordinator.togglePause()
             }
             MenuActionRow(
-                title: coordinator.keepAwake ? "모니터 꺼짐 방지 끄기" : "모니터 꺼짐 방지",
+                title: settings.windowSnapEnabled ? "창 스냅 끄기" : "창 스냅 켜기",
+                systemImage: settings.windowSnapEnabled ? "rectangle.split.2x1.fill" : "rectangle.split.2x1"
+            ) {
+                settings.windowSnapEnabled.toggle()
+            }
+            MenuActionRow(
+                title: coordinator.keepAwake ? "모니터 꺼짐 방지 끄기" : "모니터 꺼짐 방지 켜기",
                 systemImage: coordinator.keepAwake ? "sun.max.fill" : "sun.max"
             ) {
                 coordinator.toggleKeepAwake()
