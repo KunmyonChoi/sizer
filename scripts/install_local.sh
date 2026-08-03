@@ -23,8 +23,16 @@ xcodebuild -project Sizer.xcodeproj -scheme Sizer -configuration Release \
   -derivedDataPath build/dd -destination 'platform=macOS' clean build >/dev/null
 
 APP="build/dd/Build/Products/Release/Sizer.app"
-echo "▶︎ ad-hoc 서명…"
-codesign --force --deep -s - "$APP"
+# 자체 서명 인증서가 있으면 고정 신원으로 서명(재빌드해도 손쉬운 사용 권한 유지).
+# 없으면 ad-hoc(빌드마다 신원이 바뀌어 권한이 초기화됨). 설정: ./scripts/setup_signing_cert.sh
+SIGN_ID="Sizer Local Signing"
+if security find-identity -p codesigning 2>/dev/null | grep -q "$SIGN_ID"; then
+  echo "▶︎ 서명(자체 인증서: $SIGN_ID)…"
+  codesign --force --deep --sign "$SIGN_ID" "$APP"
+else
+  echo "▶︎ ad-hoc 서명(자체 인증서 없음 — ./scripts/setup_signing_cert.sh 로 고정 신원 설정 가능)…"
+  codesign --force --deep -s - "$APP"
+fi
 
 echo "▶︎ 기존 Sizer 종료 후 /Applications 설치…"
 pkill -x Sizer 2>/dev/null || true
