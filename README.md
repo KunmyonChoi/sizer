@@ -34,6 +34,18 @@
 
 ## 설치
 
+Sizer는 미리 빌드된 바이너리가 아니라 **여러분의 Mac에서 소스를 빌드**해 설치합니다(Apple 공증 없이도 Gatekeeper
+경고 없이 쓰기 위함). 방법은 두 가지이고, **대부분의 사용자는 A(Homebrew)** 를 쓰면 됩니다.
+
+| 방법 | 추천 대상 | 장점 | 단점 |
+|---|---|---|---|
+| **A. Homebrew** | **대부분의 사용자 · 배포** | 한 줄 설치, `brew upgrade` 로 간단 업데이트 | 업데이트할 때마다 **창 스냅**의 손쉬운 사용 권한을 다시 허용해야 함(ad-hoc 서명이라 빌드마다 코드 신원이 바뀜) |
+| **B. 소스 직접 빌드** | 개발자 · 창 스냅을 자주 쓰는 경우 | 자체 서명 인증서로 **창 스냅 권한이 재빌드에도 유지됨** | 업데이트가 수동(`git pull` + 스크립트) |
+
+> 두 방법 모두 빌드에 **전체 Xcode**가 필요합니다. Xcode를 한 번도 실행한 적 없다면 먼저
+> [Xcode 준비](#xcode-준비-처음-한-번만)를 끝내세요. **창 스냅을 안 쓰면(변환만 쓰면) 두 방법의 실사용 차이는 없습니다** —
+> 이때는 A(Homebrew)가 가장 편합니다.
+
 ### Xcode 준비 (처음 한 번만)
 
 Xcode를 이미 한 번 실행해 구성요소 설치·라이선스 동의까지 마친 분은 이 단계를 건너뛰어도 됩니다.
@@ -67,7 +79,7 @@ Xcode를 이미 한 번 실행해 구성요소 설치·라이선스 동의까지
   실제 설치 위치로 `-s` 경로를 바꿔 주세요(예: `/Applications/Xcode-beta.app/Contents/Developer`).
 </details>
 
-### Homebrew (권장)
+### 방법 A — Homebrew (권장 · 대부분의 사용자)
 
 ```bash
 brew install KunmyonChoi/tap/sizer
@@ -89,22 +101,55 @@ sizer
 - 이미 설치돼 있다면 최신으로 업데이트: `brew upgrade sizer`
 - 최신 개발 버전: `brew install --HEAD KunmyonChoi/tap/sizer`
 
-### 소스에서 직접 빌드
+> ⚠️ **창 스냅을 쓴다면**: `brew upgrade` 로 새로 빌드할 때마다 코드 신원(CDHash)이 바뀌어, **손쉬운 사용 권한을
+> 다시 허용**해야 합니다(변환·이미지 기능은 권한과 무관하니 영향 없음). 재허용이 번거로우면 아래 **방법 B**를 쓰세요.
+> 재허용 방법: 시스템 설정 → 개인정보 보호 및 보안 → 손쉬운 사용에서 기존 "Sizer" 항목을 지우고 다시 켜기.
+
+### 방법 B — 소스에서 직접 빌드 (창 스냅 권한 유지)
+
+이 레포를 clone 한 뒤:
 
 ```bash
-brew install xcodegen ffmpeg     # 이미 있으면 생략
-./scripts/install_local.sh
+brew install xcodegen ffmpeg          # 이미 있으면 생략
+./scripts/setup_signing_cert.sh       # (권장·1회) 자체 서명 인증서 — 창 스냅 권한을 재빌드에도 유지
+./scripts/install_local.sh            # 빌드 → 서명 → /Applications 설치 → 실행
 ```
 
-- 소스에서 Release 빌드 → 서명 → `/Applications/Sizer.app` 설치 → 실행합니다.
-- Apple Developer ID / 공증이 필요 없습니다(로컬 빌드라 Gatekeeper 경고 없음).
-- 메뉴바에 아이콘이 나타납니다. Dock 아이콘은 없습니다(`LSUIElement`).
+- **실행**: `open -a Sizer` 또는 Spotlight·런치패드에서 "Sizer". **업데이트**: `git pull && ./scripts/install_local.sh`.
+- `setup_signing_cert.sh` 를 먼저 실행해 두면 `install_local.sh` 가 그 **자체 서명 인증서**로 서명합니다(안 하면 ad-hoc).
+  인증서로 서명하면 코드 신원이 고정돼 **손쉬운 사용 권한을 최초 1회만 허용**하면 이후 재빌드에도 유지됩니다
+  (머신당 1회 설정, 로그인 암호 필요). 이게 방법 B의 핵심 장점입니다.
+- Apple Developer ID / 공증이 필요 없습니다(로컬 빌드라 Gatekeeper 경고 없음). 메뉴바 아이콘, Dock 아이콘 없음(`LSUIElement`).
 - 첫 알림 때 macOS가 알림 권한을 물으면 **허용**하세요.
 
-> **창 스냅의 손쉬운 사용 권한을 재빌드마다 다시 잡기 싫다면**(선택): `./scripts/setup_signing_cert.sh` 를
-> 한 번 실행해 **자체 서명 인증서**를 만들면, `install_local.sh` 가 그 인증서로 서명합니다. ad-hoc 서명은
-> 빌드마다 코드 신원(CDHash)이 바뀌어 손쉬운 사용 권한이 초기화되지만, 고정 인증서로 서명하면 재빌드해도
-> 권한이 유지됩니다(머신당 1회 설정, 로그인 암호 필요). Homebrew 설치본은 각 PC에서 ad-hoc 빌드됩니다.
+> Homebrew 설치본(방법 A)은 각 PC에서 ad-hoc으로 빌드되므로 이 인증서 서명이 적용되지 않습니다 —
+> 인증서로 권한을 유지하는 방식은 **소스 빌드(방법 B) 전용**입니다.
+
+### 트러블슈팅 — 방법 A와 B를 둘 다 설치한 경우
+
+두 방법을 모두 설치하면 **같은 앱이 두 벌** 생겨 헷갈릴 수 있습니다(Homebrew Cellar 빌드 + `/Applications`의 로컬 빌드).
+증상과 정리 방법:
+
+**증상**
+- 검색·Spotlight에 "Sizer"가 여러 개로 보임.
+- `sizer` 명령과 `open -a Sizer` 가 **서로 다른 빌드**를 엶: `sizer` = Homebrew(Cellar, ad-hoc), `open -a Sizer` = `/Applications`(로컬 빌드).
+- **창 스냅 권한이 자꾸 초기화**됨 — 두 빌드의 코드 신원이 달라 한쪽에 권한을 줘도 다른 쪽 실행 시 안 먹음.
+- 동시에 실행돼도 하나만 뜸(중복 실행 방지 가드).
+
+**지금 무엇이 설치·실행 중인지 확인**
+```bash
+ls -ld /Applications/Sizer.app                                   # 심링크=Homebrew, 실제 폴더=로컬 빌드
+codesign -dvvv /Applications/Sizer.app 2>&1 | grep -E "Authority|Signature"  # "Sizer Local Signing"=인증서 로컬 빌드, adhoc=ad-hoc
+pgrep -fl "Sizer.app/Contents/MacOS/Sizer"                       # 실행 중 인스턴스의 실제 경로
+```
+
+**하나로 정리 (택1)**
+- **Homebrew만 쓰기**: `rm -rf /Applications/Sizer.app` 후 `sizer` 실행(→ `/Applications`에 Homebrew를 가리키는 링크 재생성). 실행은 `sizer`.
+- **로컬 빌드만 쓰기**: `brew uninstall sizer`(→ Cellar와 `sizer` 명령 제거). 실행은 `open -a Sizer`.
+- 어느 쪽이든, 시스템 설정 → 개인정보 보호 및 보안 → **손쉬운 사용**에서 **낡은 "Sizer" 항목을 모두 지우고** 새로 한 번만 허용하세요.
+
+> 참고: 방법 B로 빌드하면 프로젝트 `build/` 폴더의 **빌드 산출물**이 Spotlight에 잡혀 "Sizer"가 하나 더 보일 수 있습니다.
+> 현재 `install_local.sh` 는 빌드 출력을 `.noindex` 폴더에 두어 색인되지 않게 합니다. 예전 잔여물이 남아 보이면 `rm -rf build` 로 지우세요.
 
 ## 기본 폴더
 

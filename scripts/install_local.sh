@@ -19,10 +19,11 @@ fi
 
 echo "▶︎ 프로젝트 생성 + Release 빌드…"
 xcodegen generate >/dev/null
+# 빌드 산출물은 '.noindex' 폴더에 둔다 → Spotlight가 색인하지 않아 검색에 중복 앱으로 뜨지 않음.
 xcodebuild -project Sizer.xcodeproj -scheme Sizer -configuration Release \
-  -derivedDataPath build/dd -destination 'platform=macOS' clean build >/dev/null
+  -derivedDataPath build/dd.noindex -destination 'platform=macOS' clean build >/dev/null
 
-APP="build/dd/Build/Products/Release/Sizer.app"
+APP="build/dd.noindex/Build/Products/Release/Sizer.app"
 # 자체 서명 인증서가 있으면 고정 신원으로 서명(재빌드해도 손쉬운 사용 권한 유지).
 # 없으면 ad-hoc(빌드마다 신원이 바뀌어 권한이 초기화됨). 설정: ./scripts/setup_signing_cert.sh
 SIGN_ID="Sizer Local Signing"
