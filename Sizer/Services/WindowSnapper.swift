@@ -181,18 +181,29 @@ enum WindowSnapper {
 
     private static func setFrame(_ cocoaRect: NSRect, for window: AXUIElement) {
         let ax = cocoaToAXRect(cocoaRect, primaryHeight: primaryHeight)
-        var pos = CGPoint(x: ax.minX, y: ax.minY)
-        var size = CGSize(width: ax.width, height: ax.height)
+        let pos = CGPoint(x: ax.minX, y: ax.minY)
+        let size = CGSize(width: ax.width, height: ax.height)
 
-        // 위치 → 크기 → 위치 순. 일부 앱은 최소 크기 제약으로 첫 위치가 밀리므로 마지막에 한 번 더 맞춘다.
-        if let posValue = AXValueCreate(.cgPoint, &pos) {
-            AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, posValue)
+        // 크기 → 위치 → 크기 순.
+        // 크기를 먼저 (아직 원래 모니터 위에서) 목표로 줄여두면, 크기가 다른 모니터로 넘어갈 때
+        // 큰 창이 두 화면에 걸쳐 크기 변경이 거부/클램프되는 문제를 피한다(→ 이전 모니터 너비로 남던 버그).
+        // 이동 후 앱이 되돌렸을 수 있는 크기를 한 번 더 확정한다.
+        setSize(size, of: window)
+        setPosition(pos, of: window)
+        setSize(size, of: window)
+    }
+
+    private static func setPosition(_ point: CGPoint, of window: AXUIElement) {
+        var p = point
+        if let value = AXValueCreate(.cgPoint, &p) {
+            AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, value)
         }
-        if let sizeValue = AXValueCreate(.cgSize, &size) {
-            AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, sizeValue)
-        }
-        if let posValue = AXValueCreate(.cgPoint, &pos) {
-            AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, posValue)
+    }
+
+    private static func setSize(_ sizeValue: CGSize, of window: AXUIElement) {
+        var s = sizeValue
+        if let value = AXValueCreate(.cgSize, &s) {
+            AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, value)
         }
     }
 }
