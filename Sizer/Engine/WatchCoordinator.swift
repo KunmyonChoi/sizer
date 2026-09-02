@@ -23,9 +23,13 @@ final class WatchCoordinator: ObservableObject {
     private var dropTargetPending: Set<String> = []   // 드롭 타겟으로 넣어 변환 대기 중인 파일명
     private var openOutputWork: DispatchWorkItem?
     private let hotKey = GlobalHotKey()               // 전역 단축키(패널 열기/닫기)
-    private let snapLeftHotKey = GlobalHotKey()       // 창 스냅: 좌측 반
-    private let snapRightHotKey = GlobalHotKey()      // 창 스냅: 우측 반
+    private let snapLeftHotKey = GlobalHotKey()       // 창 스냅: 띠에서 한 칸 왼쪽
+    private let snapRightHotKey = GlobalHotKey()      // 창 스냅: 띠에서 한 칸 오른쪽
+    private let snapLeftThirdHotKey = GlobalHotKey()  // 창 스냅: 좌 1/3 ↔ 2/3
+    private let snapRightThirdHotKey = GlobalHotKey() // 창 스냅: 우 1/3 ↔ 2/3
     private let snapMaxHotKey = GlobalHotKey()        // 창 스냅: 최대화
+    private let snapPrevScreenHotKey = GlobalHotKey() // 창 스냅: 이전 화면으로 즉시 이동
+    private let snapNextScreenHotKey = GlobalHotKey() // 창 스냅: 다음 화면으로 즉시 이동
     private let wakeGuard = WakeGuard()               // 모니터 꺼짐 방지
     private let keepAwakeHotKey = GlobalHotKey()      // 모니터 꺼짐 방지 전환
     private var active: Set<String> = []       // 큐잉/변환 중인 파일 경로
@@ -74,7 +78,11 @@ final class WatchCoordinator: ObservableObject {
         updateHotKey()
         snapLeftHotKey.onFire = { WindowSnapper.snap(.leftHalf) }
         snapRightHotKey.onFire = { WindowSnapper.snap(.rightHalf) }
+        snapLeftThirdHotKey.onFire = { WindowSnapper.snap(.leftThird) }
+        snapRightThirdHotKey.onFire = { WindowSnapper.snap(.rightThird) }
         snapMaxHotKey.onFire = { WindowSnapper.snap(.maximize) }
+        snapPrevScreenHotKey.onFire = { WindowSnapper.snap(.prevScreen) }
+        snapNextScreenHotKey.onFire = { WindowSnapper.snap(.nextScreen) }
         updateSnapHotKeys()
         keepAwakeHotKey.onFire = { [weak self] in self?.toggleKeepAwake() }
         updateKeepAwakeHotKey()
@@ -98,12 +106,20 @@ final class WatchCoordinator: ObservableObject {
         guard settings.windowSnapEnabled else {
             snapLeftHotKey.unregister()
             snapRightHotKey.unregister()
+            snapLeftThirdHotKey.unregister()
+            snapRightThirdHotKey.unregister()
             snapMaxHotKey.unregister()
+            snapPrevScreenHotKey.unregister()
+            snapNextScreenHotKey.unregister()
             return
         }
         snapLeftHotKey.update(keyCode: settings.snapLeftKeyCode, cocoaModifiers: settings.snapLeftModifiers)
         snapRightHotKey.update(keyCode: settings.snapRightKeyCode, cocoaModifiers: settings.snapRightModifiers)
+        snapLeftThirdHotKey.update(keyCode: settings.snapLeftThirdKeyCode, cocoaModifiers: settings.snapLeftThirdModifiers)
+        snapRightThirdHotKey.update(keyCode: settings.snapRightThirdKeyCode, cocoaModifiers: settings.snapRightThirdModifiers)
         snapMaxHotKey.update(keyCode: settings.snapMaxKeyCode, cocoaModifiers: settings.snapMaxModifiers)
+        snapPrevScreenHotKey.update(keyCode: settings.snapPrevScreenKeyCode, cocoaModifiers: settings.snapPrevScreenModifiers)
+        snapNextScreenHotKey.update(keyCode: settings.snapNextScreenKeyCode, cocoaModifiers: settings.snapNextScreenModifiers)
     }
 
     // MARK: 플로팅 드롭 타겟
@@ -239,8 +255,16 @@ final class WatchCoordinator: ObservableObject {
             settings.$snapLeftModifiers.map { _ in () }.eraseToAnyPublisher(),
             settings.$snapRightKeyCode.map { _ in () }.eraseToAnyPublisher(),
             settings.$snapRightModifiers.map { _ in () }.eraseToAnyPublisher(),
+            settings.$snapLeftThirdKeyCode.map { _ in () }.eraseToAnyPublisher(),
+            settings.$snapLeftThirdModifiers.map { _ in () }.eraseToAnyPublisher(),
+            settings.$snapRightThirdKeyCode.map { _ in () }.eraseToAnyPublisher(),
+            settings.$snapRightThirdModifiers.map { _ in () }.eraseToAnyPublisher(),
             settings.$snapMaxKeyCode.map { _ in () }.eraseToAnyPublisher(),
             settings.$snapMaxModifiers.map { _ in () }.eraseToAnyPublisher(),
+            settings.$snapPrevScreenKeyCode.map { _ in () }.eraseToAnyPublisher(),
+            settings.$snapPrevScreenModifiers.map { _ in () }.eraseToAnyPublisher(),
+            settings.$snapNextScreenKeyCode.map { _ in () }.eraseToAnyPublisher(),
+            settings.$snapNextScreenModifiers.map { _ in () }.eraseToAnyPublisher(),
         ]
         Publishers.MergeMany(snapTriggers)
             .debounce(for: .milliseconds(50), scheduler: RunLoop.main)

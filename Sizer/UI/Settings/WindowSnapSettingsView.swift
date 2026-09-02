@@ -13,7 +13,7 @@ struct WindowSnapSettingsView: View {
         Form {
             Section("창 스냅") {
                 Toggle("창 스냅 사용", isOn: $settings.windowSnapEnabled)
-                Text("전역 단축키로 현재 창을 화면 좌/우 절반 또는 최대화로 정렬합니다. 다중 모니터에서는 창이 있는 화면 기준으로 배치됩니다.")
+                Text("2분할과 3분할을 서로 다른 키에 두어, 한 키를 반복해도 예상 못 한 비율로 넘어가지 않습니다.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -37,10 +37,31 @@ struct WindowSnapSettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Section("단축키") {
+            Section("2분할") {
                 shortcutRow("좌측 반", .leftHalf)
                 shortcutRow("우측 반", .rightHalf)
                 shortcutRow("최대화", .maximize)
+                Text("이미 그 절반에 있으면 한 번 더 눌러 그 방향의 화면으로 넘어갑니다.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .disabled(!settings.windowSnapEnabled)
+
+            Section("3분할") {
+                shortcutRow("좌측 1/3 ↔ 2/3", .leftThird)
+                shortcutRow("우측 1/3 ↔ 2/3", .rightThird)
+                Text("누를 때마다 1/3 과 2/3 을 오갑니다. 화면은 넘지 않습니다.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .disabled(!settings.windowSnapEnabled)
+
+            Section("화면 간 이동") {
+                shortcutRow("이전 화면으로", .prevScreen)
+                shortcutRow("다음 화면으로", .nextScreen)
+                Text("창의 비율을 유지한 채 곧장 옆 화면으로 옮깁니다. 2분할 키가 건너뛰는 화면(다른 화면에 가로로 감싸인 화면)도 이 키로는 드나들 수 있습니다.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             .disabled(!settings.windowSnapEnabled)
         }

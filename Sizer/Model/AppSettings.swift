@@ -42,9 +42,21 @@ final class AppSettings: ObservableObject {
     @Published var snapRightKeyCode: Int { didSet { save(snapRightKeyCode, .snapRightKeyCode) } }
     @Published var snapRightModifiers: Int { didSet { save(snapRightModifiers, .snapRightModifiers) } }
     @Published var snapRightDisplay: String { didSet { save(snapRightDisplay, .snapRightDisplay) } }
+    @Published var snapLeftThirdKeyCode: Int { didSet { save(snapLeftThirdKeyCode, .snapLeftThirdKeyCode) } }
+    @Published var snapLeftThirdModifiers: Int { didSet { save(snapLeftThirdModifiers, .snapLeftThirdModifiers) } }
+    @Published var snapLeftThirdDisplay: String { didSet { save(snapLeftThirdDisplay, .snapLeftThirdDisplay) } }
+    @Published var snapRightThirdKeyCode: Int { didSet { save(snapRightThirdKeyCode, .snapRightThirdKeyCode) } }
+    @Published var snapRightThirdModifiers: Int { didSet { save(snapRightThirdModifiers, .snapRightThirdModifiers) } }
+    @Published var snapRightThirdDisplay: String { didSet { save(snapRightThirdDisplay, .snapRightThirdDisplay) } }
     @Published var snapMaxKeyCode: Int { didSet { save(snapMaxKeyCode, .snapMaxKeyCode) } }
     @Published var snapMaxModifiers: Int { didSet { save(snapMaxModifiers, .snapMaxModifiers) } }
     @Published var snapMaxDisplay: String { didSet { save(snapMaxDisplay, .snapMaxDisplay) } }
+    @Published var snapPrevScreenKeyCode: Int { didSet { save(snapPrevScreenKeyCode, .snapPrevScreenKeyCode) } }
+    @Published var snapPrevScreenModifiers: Int { didSet { save(snapPrevScreenModifiers, .snapPrevScreenModifiers) } }
+    @Published var snapPrevScreenDisplay: String { didSet { save(snapPrevScreenDisplay, .snapPrevScreenDisplay) } }
+    @Published var snapNextScreenKeyCode: Int { didSet { save(snapNextScreenKeyCode, .snapNextScreenKeyCode) } }
+    @Published var snapNextScreenModifiers: Int { didSet { save(snapNextScreenModifiers, .snapNextScreenModifiers) } }
+    @Published var snapNextScreenDisplay: String { didSet { save(snapNextScreenDisplay, .snapNextScreenDisplay) } }
 
     // MARK: 모니터 꺼짐 방지(전환 단축키. 상태 자체는 실행 중에만 유지되고 저장하지 않음)
     @Published var keepAwakeKeyCode: Int { didSet { save(keepAwakeKeyCode, .keepAwakeKeyCode) } }
@@ -127,25 +139,37 @@ final class AppSettings: ObservableObject {
 
     func snapKeyCode(_ a: SnapPosition) -> Int {
         switch a {
-        case .leftHalf:  return snapLeftKeyCode
-        case .rightHalf: return snapRightKeyCode
-        case .maximize:  return snapMaxKeyCode
+        case .leftHalf:   return snapLeftKeyCode
+        case .rightHalf:  return snapRightKeyCode
+        case .leftThird:  return snapLeftThirdKeyCode
+        case .rightThird: return snapRightThirdKeyCode
+        case .maximize:   return snapMaxKeyCode
+        case .prevScreen: return snapPrevScreenKeyCode
+        case .nextScreen: return snapNextScreenKeyCode
         }
     }
 
     func snapModifiers(_ a: SnapPosition) -> Int {
         switch a {
-        case .leftHalf:  return snapLeftModifiers
-        case .rightHalf: return snapRightModifiers
-        case .maximize:  return snapMaxModifiers
+        case .leftHalf:   return snapLeftModifiers
+        case .rightHalf:  return snapRightModifiers
+        case .leftThird:  return snapLeftThirdModifiers
+        case .rightThird: return snapRightThirdModifiers
+        case .maximize:   return snapMaxModifiers
+        case .prevScreen: return snapPrevScreenModifiers
+        case .nextScreen: return snapNextScreenModifiers
         }
     }
 
     func snapDisplay(_ a: SnapPosition) -> String {
         switch a {
-        case .leftHalf:  return snapLeftDisplay
-        case .rightHalf: return snapRightDisplay
-        case .maximize:  return snapMaxDisplay
+        case .leftHalf:   return snapLeftDisplay
+        case .rightHalf:  return snapRightDisplay
+        case .leftThird:  return snapLeftThirdDisplay
+        case .rightThird: return snapRightThirdDisplay
+        case .maximize:   return snapMaxDisplay
+        case .prevScreen: return snapPrevScreenDisplay
+        case .nextScreen: return snapNextScreenDisplay
         }
     }
 
@@ -155,9 +179,13 @@ final class AppSettings: ObservableObject {
 
     func setSnapShortcut(_ a: SnapPosition, keyCode: Int, modifiers: Int, display: String) {
         switch a {
-        case .leftHalf:  snapLeftKeyCode = keyCode;  snapLeftModifiers = modifiers;  snapLeftDisplay = display
-        case .rightHalf: snapRightKeyCode = keyCode; snapRightModifiers = modifiers; snapRightDisplay = display
-        case .maximize:  snapMaxKeyCode = keyCode;   snapMaxModifiers = modifiers;   snapMaxDisplay = display
+        case .leftHalf:   snapLeftKeyCode = keyCode;  snapLeftModifiers = modifiers;  snapLeftDisplay = display
+        case .rightHalf:  snapRightKeyCode = keyCode; snapRightModifiers = modifiers; snapRightDisplay = display
+        case .leftThird:  snapLeftThirdKeyCode = keyCode;  snapLeftThirdModifiers = modifiers;  snapLeftThirdDisplay = display
+        case .rightThird: snapRightThirdKeyCode = keyCode; snapRightThirdModifiers = modifiers; snapRightThirdDisplay = display
+        case .maximize:   snapMaxKeyCode = keyCode;   snapMaxModifiers = modifiers;   snapMaxDisplay = display
+        case .prevScreen: snapPrevScreenKeyCode = keyCode; snapPrevScreenModifiers = modifiers; snapPrevScreenDisplay = display
+        case .nextScreen: snapNextScreenKeyCode = keyCode; snapNextScreenModifiers = modifiers; snapNextScreenDisplay = display
         }
     }
 
@@ -304,9 +332,26 @@ final class AppSettings: ObservableObject {
         snapRightKeyCode = defaults.object(forKey: Key.snapRightKeyCode.rawValue) as? Int ?? 124  // →
         snapRightModifiers = defaults.object(forKey: Key.snapRightModifiers.rawValue) as? Int ?? 786432
         snapRightDisplay = defaults.string(forKey: Key.snapRightDisplay.rawValue) ?? "⌃⌥→"
+        // 3분할: 방향키에 ⇧를 더한다. 917504 = control|option|shift.
+        snapLeftThirdKeyCode = defaults.object(forKey: Key.snapLeftThirdKeyCode.rawValue) as? Int ?? 123   // ←
+        snapLeftThirdModifiers = defaults.object(forKey: Key.snapLeftThirdModifiers.rawValue) as? Int ?? 917504
+        snapLeftThirdDisplay = defaults.string(forKey: Key.snapLeftThirdDisplay.rawValue) ?? "⌃⌥⇧←"
+        snapRightThirdKeyCode = defaults.object(forKey: Key.snapRightThirdKeyCode.rawValue) as? Int ?? 124  // →
+        snapRightThirdModifiers = defaults.object(forKey: Key.snapRightThirdModifiers.rawValue) as? Int ?? 917504
+        snapRightThirdDisplay = defaults.string(forKey: Key.snapRightThirdDisplay.rawValue) ?? "⌃⌥⇧→"
+
         snapMaxKeyCode = defaults.object(forKey: Key.snapMaxKeyCode.rawValue) as? Int ?? 36       // ↩
         snapMaxModifiers = defaults.object(forKey: Key.snapMaxModifiers.rawValue) as? Int ?? 786432
         snapMaxDisplay = defaults.string(forKey: Key.snapMaxDisplay.rawValue) ?? "⌃⌥↩"
+
+        // 화면 간 즉시 이동: 방향키에 ⌘를 더한다(Magnet·Rectangle 관례).
+        // 1835008 = control|option|command.
+        snapPrevScreenKeyCode = defaults.object(forKey: Key.snapPrevScreenKeyCode.rawValue) as? Int ?? 123   // ←
+        snapPrevScreenModifiers = defaults.object(forKey: Key.snapPrevScreenModifiers.rawValue) as? Int ?? 1835008
+        snapPrevScreenDisplay = defaults.string(forKey: Key.snapPrevScreenDisplay.rawValue) ?? "⌃⌥⌘←"
+        snapNextScreenKeyCode = defaults.object(forKey: Key.snapNextScreenKeyCode.rawValue) as? Int ?? 124    // →
+        snapNextScreenModifiers = defaults.object(forKey: Key.snapNextScreenModifiers.rawValue) as? Int ?? 1835008
+        snapNextScreenDisplay = defaults.string(forKey: Key.snapNextScreenDisplay.rawValue) ?? "⌃⌥⌘→"
 
         // 모니터 꺼짐 방지: 전환 단축키는 기본 없음(사용자가 지정).
         keepAwakeKeyCode = defaults.object(forKey: Key.keepAwakeKeyCode.rawValue) as? Int ?? 0
@@ -353,7 +398,11 @@ final class AppSettings: ObservableObject {
         case windowSnapEnabled
         case snapLeftKeyCode, snapLeftModifiers, snapLeftDisplay
         case snapRightKeyCode, snapRightModifiers, snapRightDisplay
+        case snapLeftThirdKeyCode, snapLeftThirdModifiers, snapLeftThirdDisplay
+        case snapRightThirdKeyCode, snapRightThirdModifiers, snapRightThirdDisplay
         case snapMaxKeyCode, snapMaxModifiers, snapMaxDisplay
+        case snapPrevScreenKeyCode, snapPrevScreenModifiers, snapPrevScreenDisplay
+        case snapNextScreenKeyCode, snapNextScreenModifiers, snapNextScreenDisplay
         case keepAwakeKeyCode, keepAwakeModifiers, keepAwakeDisplay
     }
 
