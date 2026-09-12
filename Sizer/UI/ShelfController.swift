@@ -16,7 +16,8 @@ final class ShelfController {
     private let expandedW = ShelfView.expandedWidth
 
     private var expanded = false
-    private var isDraggingOut = false
+    private var holds: Set<ShelfHold> = []   // 드래그-아웃·메뉴·훑어보기·정보 표시 중이면 접지 않음
+    private var isHeld: Bool { !holds.isEmpty }
     private var dockedScreen: NSScreen?
 
     private var pollTimer: Timer?
@@ -62,6 +63,7 @@ final class ShelfController {
         panel = nil
         hostingView = nil
         expanded = false
+        holds.removeAll()
         dropState.setZone(nil)
         if wasVisible { show() }
     }
@@ -69,7 +71,7 @@ final class ShelfController {
     // MARK: 패널
 
     private func makePanel() -> NSPanel {
-        let panel = NSPanel(
+        let panel = ShelfPanel(
             contentRect: NSRect(x: 0, y: 0, width: handleW, height: height),
             styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false
         )
@@ -83,7 +85,7 @@ final class ShelfController {
 
         let host = NSHostingView(rootView: ShelfView(
             store: store, dropState: dropState, showConvertZone: showConvertZone, side: side,
-            onDragSession: { [weak self] active in self?.setDraggingOut(active) }
+            onHold: { [weak self] reason, active in self?.setHold(reason, active) }
         ))
         // 내용은 항상 펼친 크기. 접힘 시 보이는 슬라이스가 '핸들'이 되도록 도킹 가장자리에 앵커링:
         // 왼쪽 도킹은 좌측 고정(핸들이 좌측), 오른쪽 도킹은 우측 고정(핸들이 우측).
@@ -199,7 +201,7 @@ final class ShelfController {
     }
 
     private func collapseIfIdle() {
-        guard expanded, !isDraggingOut, let panel else { return }
+        guard expanded, !isHeld, let panel else { return }
         // 커서가 아직 패널 위(여유 8px)면 유지
         if panel.frame.insetBy(dx: -8, dy: -8).contains(NSEvent.mouseLocation) {
             scheduleCollapse(); return
@@ -209,9 +211,14 @@ final class ShelfController {
         setPanelWidth(handleW, animate: true)
     }
 
-    private func setDraggingOut(_ active: Bool) {
-        isDraggingOut = active
-        if active { collapseWork?.cancel() } else { scheduleCollapse() }
+    /// 펼침 유지 사유를 더하거나 뺀다. 모든 사유가 끝나면 접힘을 예약한다.
+    private func setHold(_ reason: ShelfHold, _ active: Bool) {
+        if active {
+            holds.insert(reason)
+            collapseWork?.cancel(); collapseWork = nil
+        } else if holds.remove(reason) != nil, holds.isEmpty {
+            scheduleCollapse()
+        }
     }
 
     // MARK: 마우스 폴링(호버 펼침 + 화면 따라가기)
@@ -232,7 +239,7 @@ final class ShelfController {
         let mouse = NSEvent.mouseLocation
 
         // 접힘 상태에서 다른 화면으로 이동하면 그 화면 가장자리로 재도킹
-        if !expanded, !isDraggingOut, let mScreen = ScreenUtils.screenWithMouse(),
+        if !expanded, !isHeld, let mScreen = ScreenUtils.screenWithMouse(),
            mScreen.frame != dockedScreen?.frame {
             dockPanel(to: mScreen, expanded: false)
             return
@@ -255,7 +262,7 @@ final class ShelfController {
             } else {
                 expandWork?.cancel(); expandWork = nil
             }
-        } else if !isDraggingOut {
+        } else if !isHeld {
             // 펼침 상태: 커서가 패널을 벗어나면 접힘 예약
             if panel.frame.insetBy(dx: -10, dy: -10).contains(mouse) {
                 collapseWork?.cancel(); collapseWork = nil
@@ -286,6 +293,12 @@ final class ShelfController {
         // 재도킹 후에도 혹시 화면 밖이면 클램프
         panel.setFrame(ScreenUtils.clampedOnScreen(panel.frame), display: true)
     }
+}
+
+/// 키 입력(스페이스=훑어보기)을 받을 수 있는 셸프 패널. 보더리스 패널은 기본적으로 키 윈도우가 될 수 없다.
+/// nonactivatingPanel이라 키가 되어도 앱을 활성화하지는 않는다.
+final class ShelfPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
 }
 
 /// 접힌 탭/펼친 트레이 위로 오는 파일 드래그를 받는 뷰(펼침 트리거 + 위치별 존 판정 + 수용 여부).
