@@ -8,7 +8,7 @@ struct ShelfView: View {
     @ObservedObject var dropState: ShelfDropState
     var showConvertZone: Bool = true
     var side: ShelfSide = .left
-    var onDragSession: (Bool) -> Void = { _ in }
+    var onHold: (ShelfHold, Bool) -> Void = { _, _ in }   // 드래그-아웃·메뉴·훑어보기·정보 표시 중 펼침 유지
 
     static let handleWidth: CGFloat = 22
     static let trayWidth: CGFloat = 450
@@ -240,7 +240,7 @@ struct ShelfView: View {
                     newIDs: store.newItemIDs,
                     onRemove: { store.remove($0) },
                     onMovedOut: { store.remove($0) },
-                    onDragSession: onDragSession
+                    onHold: onHold
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }

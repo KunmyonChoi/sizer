@@ -349,15 +349,16 @@ final class WatchCoordinator: ObservableObject {
 
     private func finish(outcome: JobOutcome, key: String) {
         active.remove(key)
-        // 드롭 타겟(또는 통합 변환존)으로 넣은 파일이 변환 완료되면:
         let wasDropOriginated = dropTargetPending.remove(outcome.sourceName) != nil
-        if wasDropOriginated, outcome.success {
+        if outcome.success {
             // S5: 변환 결과를 셸프 트레이 맨 앞에 얹어 바로 옮길 수 있게 한다.
+            // 패널로 넣었든 Finder에서 드롭 폴더에 직접 넣었든 똑같이 보여 준다.
             if settings.addResultToShelf, let output = outcome.outputURL {
                 shelfController.store.insertFront(output)
             }
-            // 출력 폴더 자동 열기(배치당 1회)
-            if settings.openOutputAfterDrop {
+            // 출력 폴더 자동 열기(배치당 1회)는 드롭 타겟(또는 통합 변환존)으로 넣은 경우만.
+            // 드롭 폴더에 직접 넣었다면 이미 Finder를 쓰고 있으므로 창을 새로 띄우지 않는다.
+            if wasDropOriginated, settings.openOutputAfterDrop {
                 scheduleOpenOutput()
             }
         }
