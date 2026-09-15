@@ -28,3 +28,17 @@ jobs:
           -scheme Sizer
           -destination 'platform=macOS'
           test
+
+  linux:
+    # Linux 판: linux/Dockerfile(Ubuntu 24.04 + Swift 6.1 + ffmpeg)에서 공유 엔진·Linux 계층 테스트 → .deb/.tar.gz.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test & package
+        run: ./scripts/build_linux.sh --docker
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sizer-linux-amd64
+          path: dist/*

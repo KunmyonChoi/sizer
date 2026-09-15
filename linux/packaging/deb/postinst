@@ -1,0 +1,19 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "configure" ]; then
+    # 모든 사용자에게 다음 로그인부터 데몬이 켜지도록 사용자 서비스를 전역 활성화한다.
+    systemctl --global enable sizer.service >/dev/null 2>&1 || true
+
+    cat <<'EOF'
+
+Sizer 를 설치했습니다.
+  • 다음 로그인부터 서비스와 상단 바 아이콘이 자동으로 켜집니다.
+    지금 바로 켜기: 앱 목록에서 "Sizer" 실행(드롭 폴더도 열립니다)
+  • Files 우클릭 "Sizer로 변환" 메뉴: Files 를 다시 시작하면 나타납니다(nautilus -q)
+  • 설정: ~/.config/sizer/config.json  (자세한 안내: /usr/share/doc/sizer/linux.md)
+
+EOF
+fi
+
+exit 0

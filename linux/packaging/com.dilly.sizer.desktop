@@ -1,0 +1,24 @@
+[Desktop Entry]
+Type=Application
+Name=Sizer
+GenericName=영상·이미지 변환
+GenericName[en]=Video & Image Compressor
+Comment=드롭 폴더에 넣은 영상·이미지를 고화질 저용량으로 변환합니다
+Comment[en]=Shrinks videos and images dropped into the Sizer folder
+Exec=@BINDIR@/sizer-tray --activate
+Icon=com.dilly.sizer
+Terminal=false
+StartupNotify=false
+Categories=AudioVideo;Video;Utility;
+Keywords=video;image;convert;compress;resize;ffmpeg;avif;영상;이미지;변환;압축;
+Actions=output;settings;
+
+[Desktop Action output]
+Name=출력 폴더 열기
+Name[en]=Open Output Folder
+Exec=@BINDIR@/sizer open output
+
+[Desktop Action settings]
+Name=설정…
+Name[en]=Settings…
+Exec=@BINDIR@/sizer-settings

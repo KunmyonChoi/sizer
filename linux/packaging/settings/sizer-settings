@@ -1,0 +1,586 @@
+#!/usr/bin/python3
+# Sizer 설정 창 — macOS 의 "설정…" 창에 해당하는 GTK4/libadwaita 창.
+#
+# ~/.config/sizer/config.json 을 바꿀 때마다 바로 저장하고, sizer 데몬이 저장을 감지해 즉시 다시 읽는다.
+# 저장할 때마다 파일을 새로 읽어 바꾼 키만 고치므로, 창에 없는 키나 그사이 직접 고친 내용은 지워지지 않는다.
+# 입력 범위·선택지는 linux/Sources/Sizer/LinuxSettings.swift 가 받아들이는 값이어야 한다
+# (SettingsWindowContractTests 가 `sizer-settings --dump-spec` 으로 검사).
+#
+#   sizer-settings              설정 창 열기(이미 열려 있으면 앞으로 가져온다)
+#   sizer-settings --dump-spec  입력 사양 JSON 출력(테스트용 — GTK 불필요)
+#
+# 필요 패키지: python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 (libadwaita 1.4 이상)
+
+import copy
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+
+APP_ID = "com.dilly.sizer.Settings"
+DELETE = object()   # apply_changes 에서 키를 지우라는 표시
+
+
+# ── 입력 사양(macOS 설정 화면과 같은 항목·범위) ─────────────────────────────────
+
+# SensitivityPreset.detection 과 같다.
+PRESETS = {
+    "aggressive": {"noiseDb": -45.0, "minStillDuration": 1.0, "mergeGapMax": 0.35},
+    "balanced": {"noiseDb": -50.0, "minStillDuration": 2.0, "mergeGapMax": 0.5},
+    "conservative": {"noiseDb": -58.0, "minStillDuration": 3.0, "mergeGapMax": 0.7},
+}
+PRESET_KEYS = ("noiseDb", "minStillDuration", "mergeGapMax")
+
+
+def _folder(label):
+    return {"type": "folder", "label": label}
+
+
+def _switch(label, default, subtitle=None):
+    return {"type": "switch", "label": label, "default": default, "subtitle": subtitle}
+
+
+def _choice(label, default, choices, subtitle=None):
+    return {"type": "choice", "label": label, "default": default, "choices": choices, "subtitle": subtitle}
+
+
+def _number(label, default, minimum, maximum, step, digits=0, subtitle=None):
+    return {"type": "number", "label": label, "default": default, "min": minimum, "max": maximum,
+            "step": step, "digits": digits, "subtitle": subtitle}
+
+
+def _text(label, default, pattern=None, hint=None):
+    return {"type": "text", "label": label, "default": default, "pattern": pattern, "hint": hint}
+
+
+CONTROLS = {
+    "folders.drop": _folder("드롭(감시) 폴더"),
+    "folders.output": _folder("출력 폴더"),
+    "folders.processed": _folder("완료 폴더"),
+    "folders.failed": _folder("실패 폴더"),
+    "notifications": _switch("변환 완료·실패 알림 표시", True),
+    "openOutputAfterAdd": _switch("우클릭 변환 후 출력 폴더 열기", True,
+                                  "Files 우클릭 \"Sizer로 변환\"으로 넣은 파일이 끝나면 출력 폴더를 엽니다"),
+    "processedRetentionDays": _choice("오래된 원본 자동 삭제", 30,
+                                      [[0, "끔"], [7, "7일 뒤"], [30, "30일 뒤"], [90, "90일 뒤"], [180, "180일 뒤"]],
+                                      "변환에 성공한 원본을 processed 폴더에서 지웁니다"),
+    "video.codec": _choice("코덱", "libx264",
+                           [["libx264", "H.264 (libx264, SNS 최대 호환)"], ["libx265", "H.265 (libx265, 더 작은 용량)"]]),
+    "video.crf": _number("CRF", 26, 18, 32, 1, subtitle="낮을수록 고화질·큰 용량"),
+    "video.preset": _choice("Preset", "slow",
+                            [[p, p] for p in ("ultrafast", "superfast", "veryfast", "faster", "fast",
+                                              "medium", "slow", "slower", "veryslow")],
+                            "느릴수록 같은 화질에 작은 파일"),
+    "video.maxLongEdge": _choice("장변 최대(px)", 1920, [[v, str(v)] for v in (1280, 1920, 2560, 3840)]),
+    "video.audioBitrate": _text("오디오 비트레이트", "128k", r"^[0-9]+k$", "예: 128k"),
+    "video.outputSuffix": _text("출력 파일 접미사", "_resize", None, "예: _resize → 원본이름_resize.mp4"),
+    "still.mode": _choice("정지 구간 처리", "fastForward",
+                          [["off", "끔"], ["trim", "잘라내기"], ["fastForward", "빨리감기 · Beta"]]),
+    "still.sensitivity": _choice("민감도 프리셋", "conservative",
+                                 [["aggressive", "공격적"], ["balanced", "균형"], ["conservative", "보수적"]],
+                                 "고르면 아래 감지값이 프리셋값으로 바뀝니다"),
+    "still.noiseDb": _number("정지 판단 민감도(dB)", -58.0, -70, -30, 1, subtitle="0에 가까울수록 공격적"),
+    "still.minStillDuration": _number("최소 정지 길이(초)", 3.0, 0.5, 5, 0.5, 1),
+    "still.adaptiveThreshold": _switch("적응형 임계값(노이즈 콘텐츠)", False,
+                                       "노이즈가 있는 영상에서 정지 구간을 놓치지 않도록 임계값을 안전 범위 안에서 완화합니다"),
+    "still.mergeGapMax": _number("컷 병합 간격(초)", 0.7, 0, 2, 0.1, 1, "이 이하의 짧은 정지는 이어붙임"),
+    "still.minKeep": _number("최소 유지 길이(초)", 0.3, 0, 2, 0.1, 1, "이보다 짧은 조각은 버림"),
+    "still.pad": _number("컷 여유(패딩, 초)", 0.15, 0, 1, 0.05, 2),
+    "still.smoothTransitions": _switch("부드러운 전환(오디오 페이드 증가)", False),
+    "still.minKeepRatio": _number("안전장치: 최소 유지 비율", 0.02, 0, 0.2, 0.01, 2, "남는 길이가 원본의 이 비율 미만이면 취소"),
+    "still.fastForwardSpeed": _choice("배속", 4, [[2, "2×"], [4, "4×"], [8, "8×"]]),
+    "still.fastForwardMinDuration": _number("최소 배속 구간 길이(초)", 2.0, 1, 8, 0.5, 1, "이 길이 이상 저모션 구간만 배속"),
+    "still.fastForwardMuteAudio": _switch("배속 구간 오디오 음소거", True),
+    "still.fastForwardBadge": _switch("배속 배지 표시(»N×)", True),
+    "image.enabled": _switch("이미지도 변환", True, "드롭 폴더에 들어온 스크린샷·이미지를 고화질 저용량으로 변환합니다"),
+    "image.format": _choice("출력 포맷", "avif",
+                            [["avif", "AVIF (고효율)"], ["heic", "HEIC (Apple 고압축)"],
+                             ["jpeg", "JPEG (범용)"], ["png", "PNG (무손실)"]]),
+    "image.quality": _number("품질", 0.8, 0.3, 1.0, 0.05, 2, "높을수록 고화질·큰 용량. PNG 는 적용되지 않습니다"),
+    "image.maxLongEdge": _choice("최대 크기(장변, px)", 0,
+                                 [[0, "원본 유지"], [1280, "1280"], [1920, "1920"], [2560, "2560"], [3840, "3840"]]),
+}
+
+# (페이지 제목, 아이콘, [(그룹 제목, 표시 조건 태그, [키 …])])
+PAGES = [
+    ("일반", "preferences-system-symbolic", [
+        ("폴더", None, ["folders.drop", "folders.output", "folders.processed", "folders.failed"]),
+        ("알림", None, ["notifications", "openOutputAfterAdd"]),
+        ("정리", None, ["processedRetentionDays"]),
+    ]),
+    ("인코딩", "video-x-generic-symbolic", [
+        (None, None, ["video.codec", "video.crf", "video.preset", "video.maxLongEdge",
+                      "video.audioBitrate", "video.outputSuffix"]),
+    ]),
+    ("트리밍", "edit-cut-symbolic", [
+        (None, None, ["still.mode"]),
+        ("감지", "detect", ["still.sensitivity", "still.noiseDb", "still.minStillDuration", "still.adaptiveThreshold"]),
+        ("잘라내기", "trim", ["still.mergeGapMax", "still.minKeep", "still.pad", "still.smoothTransitions",
+                          "still.minKeepRatio"]),
+        ("빨리감기 (Beta)", "fastForward", ["still.fastForwardSpeed", "still.fastForwardMinDuration",
+                                          "still.fastForwardMuteAudio", "still.fastForwardBadge"]),
+    ]),
+    ("이미지", "image-x-generic-symbolic", [
+        (None, None, ["image.enabled"]),
+        ("포맷", "image", ["image.format", "image.quality", "image.maxLongEdge"]),
+    ]),
+]
+
+MODE_HELP = {
+    "off": "정지/저모션 구간을 그대로 둡니다.",
+    "trim": "정지 구간을 잘라내 이어붙입니다.",
+    "fastForward": "저모션 구간을 배속 재생해 지루함을 줄이되 맥락은 유지합니다.",
+}
+
+
+def spec_json():
+    return {"controls": CONTROLS, "presets": PRESETS}
+
+
+# ── 경로(linux/Sources/Sizer/Paths.swift 와 같은 규칙) ─────────────────────────
+
+def home_dir():
+    return os.path.expanduser("~")
+
+
+def config_home():
+    value = os.environ.get("XDG_CONFIG_HOME", "")
+    return value if value.startswith("/") else os.path.join(home_dir(), ".config")
+
+
+def config_path():
+    return os.path.join(config_home(), "sizer", "config.json")
+
+
+def videos_dir(home, cfg_home):
+    """user-dirs.dirs 의 XDG_VIDEOS_DIR(없거나 $HOME 이면 ~/Videos)."""
+    try:
+        with open(os.path.join(cfg_home, "user-dirs.dirs"), encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("XDG_VIDEOS_DIR="):
+                    value = line.split("=", 1)[1].strip('"').replace("$HOME", home)
+                    if value.startswith("/") and os.path.normpath(value) != os.path.normpath(home):
+                        return value
+    except OSError:
+        pass
+    return os.path.join(home, "Videos")
+
+
+def default_folder(name, home, cfg_home):
+    return os.path.join(videos_dir(home, cfg_home), "Sizer", name)
+
+
+def expand(path, home):
+    if path == "~":
+        return home
+    if path.startswith("~/"):
+        return home + path[1:]
+    if path.startswith("$HOME"):
+        return home + path[len("$HOME"):]
+    return path
+
+
+def abbreviate(path, home):
+    home = home.rstrip("/")
+    if path == home:
+        return "~"
+    if path.startswith(home + "/"):
+        return "~" + path[len(home):]
+    return path
+
+
+# ── 설정 문서(순수 함수 — test_sizer_settings.py) ─────────────────────────────
+
+def load_document(path):
+    """(문서, 오류). 파일이 없으면 빈 문서. JSON 이 깨졌으면 문서 None — 덮어쓰지 않도록."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            doc = json.load(f)
+    except FileNotFoundError:
+        return {}, None
+    except ValueError as error:
+        return None, f"설정 파일의 JSON 형식이 잘못됐습니다: {error}"
+    except OSError as error:
+        return None, f"설정 파일을 읽을 수 없습니다: {error}"
+    if not isinstance(doc, dict):
+        return None, "설정 파일의 최상위가 JSON 객체가 아닙니다"
+    return doc, None
+
+
+def get_value(doc, key):
+    """문서 값. 없으면 기본값 — 감지 세부값은 민감도 프리셋값, 폴더는 None."""
+    section, _, name = key.rpartition(".")
+    container = doc.get(section) if section else doc
+    if isinstance(container, dict) and name in container:
+        return container[name]
+    if section == "still" and name in PRESET_KEYS:
+        preset = get_value(doc, "still.sensitivity")
+        return PRESETS.get(preset, PRESETS["conservative"])[name]
+    if section == "folders":
+        return None
+    return CONTROLS[key]["default"]
+
+
+def apply_changes(doc, changes):
+    """{키: 값 또는 DELETE} 를 적용한 새 문서."""
+    doc = copy.deepcopy(doc)
+    for key, value in changes.items():
+        section, _, name = key.rpartition(".")
+        if section:
+            if not isinstance(doc.get(section), dict):
+                doc[section] = {}
+            container = doc[section]
+        else:
+            container = doc
+        if value is DELETE:
+            container.pop(name, None)
+        else:
+            container[name] = value
+    return doc
+
+
+def changes_for(key, value):
+    """한 컨트롤 변경이 파일에 주는 변경. 민감도 프리셋을 고르면 감지 세부값을 지워 프리셋이 정하게 한다
+    (macOS 의 applySensitivityPreset 과 같은 결과)."""
+    changes = {key: value}
+    if key == "still.sensitivity":
+        for name in PRESET_KEYS:
+            changes[f"still.{name}"] = DELETE
+    return changes
+
+
+def write_json_atomic(path, doc):
+    directory = os.path.dirname(path)
+    os.makedirs(directory, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=".config-", suffix=".json", dir=directory)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(doc, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+        os.replace(tmp, path)   # 데몬이 반쯤 쓰인 파일을 읽지 않게 이름 바꾸기로 교체
+    except BaseException:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
+
+
+def save_changes(path, changes):
+    """파일을 새로 읽어 바꾼 키만 고쳐 쓴다. 실패하면 오류 문자열."""
+    doc, error = load_document(path)
+    if error:
+        return error
+    try:
+        write_json_atomic(path, apply_changes(doc, changes))
+    except OSError as err:
+        return f"설정을 저장하지 못했습니다: {err}"
+    return None
+
+
+def coerce(control, value):
+    if control["type"] == "number" and control.get("digits", 0) == 0:
+        return int(round(value))
+    if control["type"] == "number":
+        return round(float(value), control["digits"])
+    return value
+
+
+def number_bounds(control, value):
+    """파일에 화면 범위 밖 값(직접 고친 값)이 있으면 조용히 바꾸지 않도록 범위를 넓힌다."""
+    low, high = control["min"], control["max"]
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        low, high = min(low, value), max(high, value)
+    return low, high
+
+
+def choices_with(control, value):
+    """현재 값이 선택지에 없으면(직접 고친 값) 맨 끝에 추가해 보여 준다."""
+    choices = [list(c) for c in control["choices"]]
+    if value is not None and value not in [c[0] for c in choices]:
+        choices.append([value, f"{value} (직접 설정)"])
+    return choices
+
+
+def text_is_valid(control, text):
+    import re
+    pattern = control.get("pattern")
+    return pattern is None or re.match(pattern, text) is not None
+
+
+def group_visible(tag, doc):
+    mode = get_value(doc, "still.mode")
+    return {
+        "detect": mode != "off",
+        "trim": mode == "trim",
+        "fastForward": mode == "fastForward",
+    }.get(tag, True)
+
+
+def folder_conflict(doc, key, new_path, home, cfg_home):
+    """출력 폴더가 드롭 폴더와 같으면 결과가 다시 변환된다(데몬도 거부한다)."""
+    other = {"folders.drop": "folders.output", "folders.output": "folders.drop"}.get(key)
+    if other is None:
+        return None
+    current = get_value(doc, other) or default_folder(other.split(".")[1], home, cfg_home)
+    if os.path.normpath(expand(current, home)) == os.path.normpath(expand(new_path, home)):
+        return "출력 폴더는 드롭 폴더와 달라야 합니다(결과가 다시 변환됩니다)"
+    return None
+
+
+def sizer_command():
+    sibling = os.path.join(os.path.dirname(os.path.realpath(__file__)), "sizer")
+    if os.access(sibling, os.X_OK):
+        return sibling
+    return shutil.which("sizer") or os.path.expanduser("~/.local/bin/sizer")
+
+
+def run_detached(args):
+    try:
+        subprocess.Popen(args, start_new_session=True, stdin=subprocess.DEVNULL,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except OSError as error:
+        print(f"sizer-settings: 실행 실패 {args[0]}: {error}", file=sys.stderr)
+
+
+def command_output(args):
+    try:
+        return subprocess.run(args, capture_output=True, text=True, timeout=5).stdout.strip()
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+
+# ── 창 ────────────────────────────────────────────────────────────────────────
+
+def run_gui():
+    try:
+        import gi
+        gi.require_version("Gtk", "4.0")
+        gi.require_version("Adw", "1")
+        from gi.repository import Adw, Gio, GLib, Gtk
+    except (ImportError, ValueError) as error:
+        message = "설정 창에는 gir1.2-gtk-4.0 과 gir1.2-adw-1 이 필요합니다"
+        print(f"sizer-settings: {message} ({error})", file=sys.stderr)
+        run_detached(["notify-send", "--app-name=Sizer", "Sizer", message])
+        return 1
+    if (Adw.get_major_version(), Adw.get_minor_version()) < (1, 4):
+        print("sizer-settings: libadwaita 1.4 이상이 필요합니다", file=sys.stderr)
+        return 1
+
+    GLib.set_prgname(APP_ID)           # 창을 com.dilly.sizer.Settings.desktop(Sizer 아이콘)과 짝짓는다
+    GLib.set_application_name("Sizer 설정")
+    home, cfg_home, path = home_dir(), config_home(), config_path()
+
+    class SettingsWindow(Adw.PreferencesWindow):
+        def __init__(self, app):
+            super().__init__(application=app, title="Sizer 설정")
+            self.set_default_size(640, 760)
+            self.set_search_enabled(False)
+            self.rows = {}
+            self.groups = {}
+            self.pending = {}
+            self.save_source = 0
+            self.updating = False
+            self.doc, error = load_document(path)
+            for title, icon, groups in PAGES:
+                page = Adw.PreferencesPage(title=title, icon_name=icon)
+                for group_title, tag, keys in groups:
+                    group = Adw.PreferencesGroup(title=group_title or "")
+                    for key in keys:
+                        row = self.build_row(key)
+                        self.rows[key] = row
+                        group.add(row)
+                    if tag:
+                        self.groups[tag] = group
+                    page.add(group)
+                if title == "일반":
+                    page.add(self.build_about_group())
+                self.add(page)
+            if error:
+                # 깨진 파일을 덮어쓰지 않는다 — 고칠 수 있게 파일 열기만 남긴다.
+                self.doc = {}
+                for row in self.rows.values():
+                    row.set_sensitive(False)
+                self.add_toast(Adw.Toast(title=error + " — 파일을 고친 뒤 다시 여세요", timeout=0))
+            self.refresh_state()
+            self.connect("close-request", self.on_close)
+
+        # 행 만들기
+
+        def build_row(self, key):
+            control = CONTROLS[key]
+            value = get_value(self.doc or {}, key)
+            kind = control["type"]
+            subtitle = control.get("subtitle") or ""
+            if kind == "switch":
+                row = Adw.SwitchRow(title=control["label"], subtitle=subtitle)
+                row.set_active(bool(value))
+                row.connect("notify::active", lambda r, _p: self.changed(key, r.get_active()))
+            elif kind == "number":
+                low, high = number_bounds(control, value)
+                adjustment = Gtk.Adjustment(value=value, lower=low, upper=high,
+                                            step_increment=control["step"], page_increment=control["step"] * 5)
+                row = Adw.SpinRow(title=control["label"], subtitle=subtitle, adjustment=adjustment,
+                                  digits=control["digits"])
+                row.connect("notify::value", lambda r, _p: self.changed(key, coerce(control, r.get_value())))
+            elif kind == "choice":
+                choices = choices_with(control, value)
+                row = Adw.ComboRow(title=control["label"], subtitle=subtitle,
+                                   model=Gtk.StringList.new([label for _, label in choices]))
+                row.set_selected([c[0] for c in choices].index(value) if value in [c[0] for c in choices] else 0)
+                row.choices = choices
+                row.connect("notify::selected", lambda r, _p: self.changed(key, r.choices[r.get_selected()][0]))
+            elif kind == "text":
+                row = Adw.EntryRow(title=f"{control['label']} ({control['hint']})" if control.get("hint") else control["label"])
+                row.set_text(str(value))
+                row.set_show_apply_button(True)
+                row.connect("apply", lambda r: self.on_text_apply(key, r))
+            else:   # folder
+                row = Adw.ActionRow(title=control["label"])
+                row.set_subtitle_lines(1)
+                button = Gtk.Button(label="변경…", valign=Gtk.Align.CENTER)
+                button.connect("clicked", lambda _b: self.choose_folder(key))
+                row.add_suffix(button)
+                row.set_subtitle(self.folder_display(key))
+            return row
+
+        def build_about_group(self):
+            group = Adw.PreferencesGroup(title="정보")
+            version = command_output([sizer_command(), "--version"]).replace("sizer ", "") or "—"
+            group.add(Adw.ActionRow(title="버전", subtitle=version))
+            self.service_row = Adw.ActionRow(title="서비스")
+            group.add(self.service_row)
+            files = Adw.ActionRow(title="파일")
+            for label, target in (("설정 파일 열기", "config"), ("로그 열기", "logs")):
+                button = Gtk.Button(label=label, valign=Gtk.Align.CENTER)
+                button.connect("clicked", lambda _b, t=target: run_detached([sizer_command(), "open", t]))
+                files.add_suffix(button)
+            group.add(files)
+            self.refresh_service()
+            GLib.timeout_add_seconds(3, self.refresh_service)
+            return group
+
+        def folder_display(self, key):
+            value = get_value(self.doc or {}, key)
+            if value:
+                return value
+            return abbreviate(default_folder(key.split(".")[1], home, cfg_home), home) + " (기본값)"
+
+        # 변경 · 저장
+
+        def changed(self, key, value):
+            if self.updating:
+                return
+            changes = changes_for(key, value)
+            self.doc = apply_changes(self.doc, changes)
+            self.pending.update(changes)
+            if key == "still.sensitivity":
+                self.set_rows_from_doc([f"still.{name}" for name in PRESET_KEYS])
+            self.refresh_state()
+            if self.save_source:
+                GLib.source_remove(self.save_source)
+            self.save_source = GLib.timeout_add(300, self.flush)   # 스핀 버튼을 누르고 있을 때 연달아 쓰지 않게
+
+        def flush(self):
+            self.save_source = 0
+            if not self.pending:
+                return False
+            error = save_changes(path, self.pending)
+            self.pending = {}
+            if error:
+                self.add_toast(Adw.Toast(title=error, timeout=6))
+            return False
+
+        def on_close(self, _window):
+            if self.save_source:
+                GLib.source_remove(self.save_source)
+            self.flush()
+            return False
+
+        def on_text_apply(self, key, row):
+            control = CONTROLS[key]
+            text = row.get_text().strip()
+            if not text_is_valid(control, text):
+                row.add_css_class("error")
+                self.add_toast(Adw.Toast(title=f"{control['label']}: 형식이 맞지 않습니다({control['hint']})", timeout=4))
+                return
+            row.remove_css_class("error")
+            self.changed(key, text)
+
+        def choose_folder(self, key):
+            dialog = Gtk.FileDialog(title=CONTROLS[key]["label"], modal=True)
+            current = expand(get_value(self.doc, key) or default_folder(key.split(".")[1], home, cfg_home), home)
+            if os.path.isdir(current):
+                dialog.set_initial_folder(Gio.File.new_for_path(current))
+
+            def done(dlg, result):
+                try:
+                    folder = dlg.select_folder_finish(result)
+                except GLib.Error:
+                    return   # 취소
+                chosen = folder.get_path() if folder else None
+                if not chosen:
+                    return
+                conflict = folder_conflict(self.doc, key, chosen, home, cfg_home)
+                if conflict:
+                    self.add_toast(Adw.Toast(title=conflict, timeout=5))
+                    return
+                self.changed(key, abbreviate(chosen, home))
+                self.rows[key].set_subtitle(self.folder_display(key))
+
+            dialog.select_folder(self, None, done)
+
+        # 화면 갱신
+
+        def set_rows_from_doc(self, keys):
+            self.updating = True
+            try:
+                for key in keys:
+                    row, control, value = self.rows[key], CONTROLS[key], get_value(self.doc, key)
+                    if control["type"] == "number":
+                        low, high = number_bounds(control, value)
+                        row.get_adjustment().set_lower(low)
+                        row.get_adjustment().set_upper(high)
+                        row.set_value(value)
+            finally:
+                self.updating = False
+
+        def refresh_state(self):
+            doc = self.doc or {}
+            for tag, group in self.groups.items():
+                if tag == "image":
+                    group.set_sensitive(bool(get_value(doc, "image.enabled")))
+                else:
+                    group.set_visible(group_visible(tag, doc))
+            self.rows["image.quality"].set_sensitive(get_value(doc, "image.format") != "png")
+            self.rows["still.mode"].set_subtitle(MODE_HELP.get(get_value(doc, "still.mode"), ""))
+
+        def refresh_service(self):
+            state = command_output(["systemctl", "--user", "is-active", "sizer.service"])
+            self.service_row.set_subtitle({"active": "실행 중 — 저장하면 바로 적용됩니다",
+                                           "activating": "시작 중"}.get(state, "꺼짐 — 트레이 메뉴나 앱 목록에서 Sizer 를 실행하세요"))
+            return True
+
+    def on_activate(app):
+        window = app.get_active_window() or SettingsWindow(app)
+        window.present()
+
+    app = Adw.Application(application_id=APP_ID)
+    app.connect("activate", on_activate)
+    return app.run([sys.argv[0]])
+
+
+def main(argv):
+    if "--dump-spec" in argv:
+        print(json.dumps(spec_json(), ensure_ascii=False, indent=2))
+        return 0
+    if not os.path.exists(config_path()):
+        # 첫 실행이면 sizer 가 기본 설정 파일(폴더 경로 포함)을 만들게 한다.
+        command_output([sizer_command(), "config", "path"])
+        command_output([sizer_command(), "status"])
+    return run_gui()
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

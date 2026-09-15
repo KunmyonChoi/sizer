@@ -22,6 +22,20 @@
 > 기존 Python 백그라운드 워커(`watch_convert.py`)를 네이티브 SwiftUI 앱으로 개편한 버전입니다.
 > 예전 파일은 `legacy/`에 보존되어 있습니다.
 
+## Linux (베타)
+
+Ubuntu 등 Linux 에서도 **같은 변환 엔진**으로 동작합니다 — 로그인 시 켜지는 드롭 폴더 감시 서비스,
+상단 바 아이콘(상태·최근 변환·일시정지·모니터 꺼짐 방지), 설정 창, Files 우클릭 **"Sizer로 변환"**,
+`열기`·`폴더에서 보기` 버튼이 달린 알림, `sizer` 터미널 명령. 드롭·셸프 패널과 창 스냅은 macOS 전용입니다.
+
+```bash
+sudo apt install ./sizer_*_amd64.deb   # Releases 에서 받은 .deb (sudo 없이: tar.gz 의 ./install.sh)
+```
+
+설치 후 앱 목록에서 **Sizer** 를 실행하면 서비스와 상단 바 아이콘이 켜집니다.
+
+설치·설정·macOS 판과의 차이는 **[docs/linux.md](docs/linux.md)** 를 보세요. 이 아래 내용은 macOS 판 기준입니다.
+
 ## 요구사항
 
 - **macOS 13+**
@@ -336,6 +350,9 @@ Sizer/
 SizerTests/                   순수 로직 단위(SegmentPlanner·ProcessedCleaner) + 실제 ffmpeg/ImageIO 통합 테스트
 scripts/install_local.sh      개인용 설치(ad-hoc)
 scripts/build_release.sh      [후속] Developer ID 서명+공증 템플릿
+Package.swift                 Linux 판 SwiftPM 빌드 — Engine/Model 소스를 macOS 앱과 공유
+linux/                        Linux 전용 구현(inotify 감시·ffmpeg 이미지 변환·알림·데몬·CLI)과 패키징(systemd·.desktop·Files 확장)
+scripts/build_linux.sh        Linux 테스트 → .deb / .tar.gz
 legacy/                       구 Python 워커 보존
 ```
 
