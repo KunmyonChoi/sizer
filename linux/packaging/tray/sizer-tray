@@ -1,0 +1,568 @@
+#!/usr/bin/python3
+# Sizer 트레이 — 상단 바 아이콘(AppIndicator)으로 상태·최근 변환·폴더·일시정지·모니터 꺼짐 방지를 다룬다.
+#
+# macOS 메뉴바 앱(MenuBarView)에 해당한다. 변환은 sizer 데몬(systemd 사용자 서비스)이 하고, 이 프로세스는
+# 데몬이 쓰는 상태 파일($XDG_RUNTIME_DIR/sizer/status.json)을 보여 주고 `sizer` 명령으로 조작만 한다.
+#
+#   sizer-tray                 트레이 실행(로그인 시 자동 시작 항목)
+#   sizer-tray --activate      앱 목록의 "Sizer": 서비스와 트레이를 켜고 드롭 폴더를 연다
+#   sizer-tray --toggle-panel  드롭·셸프 패널 펼치기/접기(GNOME 사용자 지정 단축키용)
+#
+# 가장자리 드롭·셸프 패널(sizer_panel.py)도 이 프로세스가 그린다.
+#
+# 필요 패키지: python3-gi gir1.2-ayatanaappindicator3-0.1
+# GNOME 은 AppIndicator 확장이 있어야 아이콘이 보인다(Ubuntu 는 기본 포함).
+
+import fcntl
+import json
+import os
+import shutil
+import signal
+import subprocess
+import sys
+
+APP_ID = "com.dilly.sizer"
+MAX_RECENT = 8
+LABEL_LIMIT = 64
+BUSY_FRAMES = 8
+
+
+# ── 경로(linux/Sources/Sizer/Paths.swift 와 같은 규칙) ─────────────────────────
+
+def _xdg(key, fallback):
+    value = os.environ.get(key, "")
+    return value if value.startswith("/") else os.path.join(os.path.expanduser("~"), fallback)
+
+
+def state_dir():
+    return os.path.join(_xdg("XDG_STATE_HOME", ".local/state"), "sizer")
+
+
+def runtime_dir():
+    value = os.environ.get("XDG_RUNTIME_DIR", "")
+    if value.startswith("/"):
+        return os.path.join(value, "sizer")
+    return os.path.join(state_dir(), "run")
+
+
+def status_path():
+    return os.path.join(runtime_dir(), "status.json")
+
+
+def recent_path():
+    return os.path.join(state_dir(), "recent.json")
+
+
+def daemon_lock_path():
+    return os.path.join(runtime_dir(), "daemon.lock")
+
+
+def tray_lock_path():
+    return os.path.join(runtime_dir(), "tray.lock")
+
+
+def config_path():
+    value = os.environ.get("XDG_CONFIG_HOME", "")
+    base = value if value.startswith("/") else os.path.join(os.path.expanduser("~"), ".config")
+    return os.path.join(base, "sizer", "config.json")
+
+
+def tray_pid(path=None):
+    """떠 있는 트레이의 PID(tray.lock 에 적어 둔 값). 없으면 None."""
+    path = path or tray_lock_path()
+    if not lock_is_held(path):
+        return None
+    try:
+        with open(path, encoding="utf-8") as f:
+            return int(f.read().strip())
+    except (OSError, ValueError):
+        return None
+
+
+def lock_is_held(path):
+    """다른 프로세스가 flock 을 잡고 있는지 — 데몬 실행 여부(InstanceLock.isHeld 와 같다)."""
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_CLOEXEC)
+    except OSError:
+        return False
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        return True
+    else:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        return False
+    finally:
+        os.close(fd)
+
+
+def read_json(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
+
+
+def sizer_command():
+    """함께 설치된 sizer(같은 폴더)를 먼저, 없으면 PATH 에서."""
+    sibling = os.path.join(os.path.dirname(os.path.realpath(__file__)), "sizer")
+    if os.access(sibling, os.X_OK):
+        return sibling
+    return shutil.which("sizer") or os.path.expanduser("~/.local/bin/sizer")
+
+
+def sibling_command(name):
+    """함께 설치된 명령(같은 폴더)을 먼저, 없으면 PATH 에서."""
+    sibling = os.path.join(os.path.dirname(os.path.realpath(__file__)), name)
+    if os.access(sibling, os.X_OK):
+        return sibling
+    return shutil.which(name) or os.path.expanduser(f"~/.local/bin/{name}")
+
+
+def run_detached(args):
+    try:
+        subprocess.Popen(args, start_new_session=True, stdin=subprocess.DEVNULL,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except OSError as error:
+        print(f"sizer-tray: 실행 실패 {args[0]}: {error}", file=sys.stderr)
+
+
+def start_service():
+    try:
+        subprocess.run(["systemctl", "--user", "start", "sizer.service"], timeout=15,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+
+# ── 메뉴 모델(순수 함수 — test_sizer_tray.py) ──────────────────────────────────
+
+def status_label(status, running):
+    """StatusReport.summary 와 같은 문구."""
+    if not running:
+        return "서비스 꺼짐"
+    if not status:
+        return "시작 중…"
+    queued = status.get("queued") or 0
+    waiting = f" · 대기 {queued}" if queued else ""
+    current = status.get("current")
+    state = status.get("state")
+    if state == "paused":
+        return "일시정지" + (f" · {current} 마무리 중" if current else "") + waiting
+    if state == "converting" and current:
+        return f"변환 중: {current}{waiting}"
+    return "감시 중" + waiting
+
+
+def shorten(text, limit=LABEL_LIMIT):
+    """가운데를 줄여 파일명 앞뒤(확장자)가 보이게 한다."""
+    if len(text) <= limit:
+        return text
+    head = (limit - 1) // 2
+    return text[:head] + "…" + text[-(limit - 1 - head):]
+
+
+def icon_name(status, running, keep_awake, frame=0):
+    """macOS 와 같은 우선순위: 변환 중 회전 > 꺼짐 방지(해) > 기본."""
+    state = (status or {}).get("state") if running else None
+    if state == "converting":
+        return f"sizer-busy-{frame % BUSY_FRAMES}"
+    if not running:
+        return "sizer-off"
+    if state == "paused":
+        return "sizer-paused"
+    return "sizer-awake" if keep_awake else "sizer-idle"
+
+
+def _text(label):
+    return {"kind": "text", "label": label}
+
+
+def _item(label, action, arg=None):
+    return {"kind": "item", "label": label, "action": action, "arg": arg}
+
+
+SEPARATOR = {"kind": "separator"}
+
+
+def menu_model(status, running, keep_awake, fallback_recent=None, panel_enabled=None):
+    """메뉴 항목 목록. 데몬이 꺼져 있으면 recent.json(fallback_recent)의 최근 변환을 보여 준다."""
+    status = status if running else None
+    version = (status or {}).get("version")
+    model = [_text(f"Sizer {version}" if version else "Sizer"), _text(status_label(status, running))]
+    if status and status.get("ffmpegAvailable") is False:
+        model.append(_text("⚠︎ ffmpeg 없음 · sudo apt install ffmpeg"))
+    if not running:
+        model.append(_item("서비스 시작", "start"))
+
+    model += [SEPARATOR, _text("최근 변환")]
+    jobs = (status.get("recent") if status else fallback_recent) or []
+    if not jobs:
+        model.append(_text("최근 변환 없음"))
+    for job in jobs[:MAX_RECENT]:
+        mark = "✅" if job.get("success") else "❌"
+        label = shorten(f"{mark} {job.get('source', '')} — {job.get('detail', '')}")
+        if job.get("success") and job.get("output"):
+            model.append(_item(label, "open", job["output"]))
+        else:
+            model.append(_item(label, "folder", "logs"))
+
+    model += [SEPARATOR, _item("드롭 폴더 열기", "folder", "drop"), _item("출력 폴더 열기", "folder", "output")]
+    if running:
+        paused = bool(status) and status.get("state") == "paused"
+        model.append(_item("지금 다시 스캔", "rescan"))
+        model.append(_item("감시 재개", "resume") if paused else _item("감시 일시정지", "pause"))
+    if panel_enabled is not None:   # 패널 모듈을 불러오지 못했으면 항목을 숨긴다
+        model.append({"kind": "check", "label": "드롭·셸프 패널", "action": "panel", "active": panel_enabled})
+    model.append({"kind": "check", "label": "모니터 꺼짐 방지", "action": "keep_awake", "active": keep_awake})
+    model.append(_item("설정…", "settings"))
+    model += [SEPARATOR, _item("로그 열기", "folder", "logs"), _item("Sizer 종료", "quit")]
+    return model
+
+
+# ── 아이콘(상단 바용 흰색 선 아이콘, 실행 시 런타임 폴더에 만든다) ─────────────────
+
+_STROKE = 'fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'
+_ARROWS = (f'<g {_STROKE}><path d="M5 5 L10 10"/><path d="M6.5 10 H10 V6.5"/>'
+           '<path d="M17 17 L12 12"/><path d="M15.5 12 H12 V15.5"/></g>')   # 로고의 안쪽으로 모이는 화살표
+_PAUSE = '<g fill="#ffffff"><rect x="6" y="5" width="3.5" height="12" rx="1"/><rect x="12.5" y="5" width="3.5" height="12" rx="1"/></g>'
+_SUN = ('<circle cx="11" cy="11" r="3.4" fill="#ffffff"/>'
+        + "".join(f'<path {_STROKE} transform="rotate({a} 11 11)" d="M11 2.2 V4.6"/>' for a in range(0, 360, 45)))
+_HALF_CYCLE = f'<g {_STROKE}><path d="M4.4 8.6 A7 7 0 0 1 16.4 6.5"/><path d="M16.1 3.3 L16.4 6.5 L13.3 5.7"/></g>'
+_CYCLE = _HALF_CYCLE + f'<g transform="rotate(180 11 11)">{_HALF_CYCLE}</g>'   # 두 화살표가 도는 모양
+
+
+def _svg(body, opacity=1.0):
+    return ('<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">'
+            f'<g opacity="{opacity}">{body}</g></svg>')
+
+
+def icon_svgs():
+    icons = {
+        "sizer-idle": _svg(_ARROWS),
+        "sizer-off": _svg(_ARROWS, 0.45),
+        "sizer-paused": _svg(_PAUSE),
+        "sizer-awake": _svg(_SUN),
+    }
+    for i in range(BUSY_FRAMES):   # 180° 대칭이라 8칸(22.5°씩)이면 한 바퀴처럼 이어진다
+        icons[f"sizer-busy-{i}"] = _svg(f'<g transform="rotate({i * 22.5} 11 11)">{_CYCLE}</g>')
+    return icons
+
+
+def write_icons(directory):
+    os.makedirs(directory, exist_ok=True)
+    for name, svg in icon_svgs().items():
+        with open(os.path.join(directory, name + ".svg"), "w", encoding="utf-8") as f:
+            f.write(svg)
+
+
+# ── 트레이 ───────────────────────────────────────────────────────────────────
+
+class Tray:
+    def __init__(self, Gtk, GLib, Gio, AppIndicator, panel_module=None, panel=None):
+        self.Gtk, self.GLib, self.Gio = Gtk, GLib, Gio
+        self.panel_module, self.panel = panel_module, panel
+        self.config_stamp = None
+        self.config_doc = {}
+        self.panel_config = dict(panel_module.PANEL_DEFAULTS) if panel_module else None
+        self.seen_results = None
+        self.running = False
+        self.status = None
+        self.fallback_recent = None
+        self.status_stamp = None
+        self.signature = None
+        self.icon = None
+        self.frame = 0
+        self.keep_awake = False
+        self.inhibit = None   # (방식, 쿠키)
+
+        icon_dir = os.path.join(runtime_dir(), "tray-icons")
+        write_icons(icon_dir)
+        self.indicator = AppIndicator.Indicator.new(APP_ID, "sizer-idle",
+                                                    AppIndicator.IndicatorCategory.APPLICATION_STATUS)
+        self.indicator.set_icon_theme_path(icon_dir)
+        self.indicator.set_title("Sizer")
+        self.indicator.set_status(AppIndicator.IndicatorStatus.ACTIVE)
+
+        self.refresh()
+        GLib.timeout_add_seconds(1, self._every_second)
+        GLib.timeout_add(125, self._animate)
+
+    # 상태
+
+    def refresh(self):
+        self.running = lock_is_held(daemon_lock_path())
+        stamp = self._stamp(status_path()) if self.running else None
+        if stamp != self.status_stamp:
+            self.status_stamp = stamp
+            self.status = read_json(status_path()) if stamp else None
+            self._offer_results()
+        config_stamp = self._stamp(config_path())
+        if config_stamp != self.config_stamp:
+            self.config_stamp = config_stamp
+            doc = read_json(config_path())
+            self.config_doc = doc if isinstance(doc, dict) else {}
+            if self.panel:
+                self.panel_config = self.panel_module.panel_config(self.config_doc)
+                self.panel.apply(self.panel_config["enabled"], self.panel_config["side"])
+        recent_stamp = None if self.running else self._stamp(recent_path())
+        signature = (self.running, stamp, recent_stamp, self.keep_awake, config_stamp)
+        if signature != self.signature:
+            self.signature = signature
+            self.fallback_recent = None if self.running else read_json(recent_path())
+            self.rebuild_menu()
+        self.update_icon()
+
+    def _offer_results(self):
+        """새 변환 결과를 보관 트레이에 얹는다. 처음 한 번은 기존 결과를 '본 것'으로만 표시."""
+        if not (self.panel and self.running and self.status):
+            return
+        jobs = self.status.get("recent") or []
+        if self.seen_results is None:
+            self.seen_results = set()
+            self.panel_module.new_results(jobs, self.seen_results)
+            return
+        fresh = self.panel_module.new_results(jobs, self.seen_results)
+        if fresh and self.panel_config["addResults"]:
+            self.panel.add_results(fresh)
+
+    def convert_paths(self, paths):
+        """패널 변환존에 놓인 파일을 `sizer add` 로 넘긴다. 맡긴 개수를 돌려준다."""
+        supported = self.panel_module.supported_paths(paths, self.panel_module.image_enabled(self.config_doc))
+        if supported:
+            run_detached([sizer_command(), "add", "--", *supported])
+        return len(supported)
+
+    def on_toggle_panel_signal(self):
+        if self.panel:
+            if not self.panel_config["enabled"]:
+                self.panel_module.set_config_value(config_path(), "panel", "enabled", True)
+                self.panel_config["enabled"] = True
+                self.panel.apply(True, self.panel_config["side"])
+            self.panel.toggle_from_shortcut()
+        return True
+
+    @staticmethod
+    def _stamp(path):
+        try:
+            st = os.stat(path)
+        except OSError:
+            return None
+        return (st.st_mtime_ns, st.st_ino, st.st_size)
+
+    def _every_second(self):
+        self.refresh()
+        return True
+
+    def _animate(self):
+        if self.running and (self.status or {}).get("state") == "converting":
+            self.frame += 1
+            self.update_icon()
+        return True
+
+    def update_icon(self):
+        name = icon_name(self.status, self.running, self.keep_awake, self.frame)
+        if name != self.icon:
+            self.icon = name
+            self.indicator.set_icon_full(name, status_label(self.status, self.running))
+
+    # 메뉴
+
+    def rebuild_menu(self):
+        Gtk = self.Gtk
+        menu = Gtk.Menu()
+        panel_enabled = self.panel_config["enabled"] if self.panel else None
+        for entry in menu_model(self.status, self.running, self.keep_awake, self.fallback_recent, panel_enabled):
+            kind = entry["kind"]
+            if kind == "separator":
+                item = Gtk.SeparatorMenuItem()
+            elif kind == "check":
+                item = Gtk.CheckMenuItem(label=entry["label"])
+                item.set_active(entry["active"])
+                item.connect("toggled", self.on_keep_awake if entry["action"] == "keep_awake" else self.on_panel_toggle)
+            else:
+                item = Gtk.MenuItem(label=entry["label"])
+                if kind == "text":
+                    item.set_sensitive(False)
+                else:
+                    item.connect("activate", self.on_action, entry["action"], entry.get("arg"))
+            menu.append(item)
+        menu.show_all()
+        self.indicator.set_menu(menu)
+        self.menu = menu   # 참조 유지
+
+    def on_action(self, _item, action, arg):
+        if action == "open":
+            try:
+                self.Gio.AppInfo.launch_default_for_uri(self.Gio.File.new_for_path(arg).get_uri(), None)
+            except self.GLib.Error:
+                run_detached([sizer_command(), "open", "output"])   # 옮겨졌거나 지워졌으면 출력 폴더
+        elif action == "folder":
+            run_detached([sizer_command(), "open", arg])
+        elif action == "settings":
+            run_detached([sibling_command("sizer-settings")])
+        elif action in ("pause", "resume", "rescan"):
+            run_detached([sizer_command(), action])
+        elif action == "start":
+            run_detached(["systemctl", "--user", "start", "sizer.service"])
+        elif action == "quit":
+            self.release_keep_awake()
+            try:
+                subprocess.run(["systemctl", "--user", "stop", "sizer.service"], timeout=20,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+            self.Gtk.main_quit()
+
+    # 모니터 꺼짐 방지(GNOME 세션 관리자 유휴 억제 — 권한 불필요, 트레이가 끝나면 자동 해제)
+
+    def on_keep_awake(self, item):
+        want = item.get_active()
+        if want != self.keep_awake:
+            if want:
+                self.acquire_keep_awake()
+            else:
+                self.release_keep_awake()
+        self.GLib.idle_add(self._refresh_once)   # 토글 신호 처리 중에 메뉴를 갈아 끼우지 않는다
+
+    def on_panel_toggle(self, item):
+        want = item.get_active()
+        if self.panel and want != self.panel_config["enabled"]:
+            error = self.panel_module.set_config_value(config_path(), "panel", "enabled", want)
+            if error:
+                print(f"sizer-tray: {error}", file=sys.stderr)
+        self.GLib.idle_add(self._refresh_once)   # 설정 파일 변경을 읽어 패널에 적용
+
+    def _refresh_once(self):
+        self.refresh()
+        return False
+
+    def acquire_keep_awake(self):
+        GLib, Gio = self.GLib, self.Gio
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        attempts = [
+            ("gnome", "org.gnome.SessionManager", "/org/gnome/SessionManager", "org.gnome.SessionManager",
+             "Inhibit", GLib.Variant("(susu)", (APP_ID, 0, "Sizer: 모니터 꺼짐 방지", 8))),   # 8 = 유휴(화면 꺼짐)
+            ("screensaver", "org.freedesktop.ScreenSaver", "/org/freedesktop/ScreenSaver", "org.freedesktop.ScreenSaver",
+             "Inhibit", GLib.Variant("(ss)", (APP_ID, "Sizer: 모니터 꺼짐 방지"))),
+        ]
+        for method, name, path, interface, member, args in attempts:
+            try:
+                reply = bus.call_sync(name, path, interface, member, args, GLib.VariantType("(u)"),
+                                      Gio.DBusCallFlags.NONE, 5000, None)
+            except GLib.Error:
+                continue
+            self.inhibit = (method, reply.unpack()[0])
+            self.keep_awake = True
+            return
+        print("sizer-tray: 화면 꺼짐 방지를 요청할 수 없습니다", file=sys.stderr)
+
+    def release_keep_awake(self):
+        if not self.inhibit:
+            self.keep_awake = False
+            return
+        GLib, Gio = self.GLib, self.Gio
+        method, cookie = self.inhibit
+        if method == "gnome":
+            target = ("org.gnome.SessionManager", "/org/gnome/SessionManager", "org.gnome.SessionManager", "Uninhibit")
+        else:
+            target = ("org.freedesktop.ScreenSaver", "/org/freedesktop/ScreenSaver", "org.freedesktop.ScreenSaver", "UnInhibit")
+        try:
+            Gio.bus_get_sync(Gio.BusType.SESSION, None).call_sync(
+                *target, GLib.Variant("(u)", (cookie,)), None, Gio.DBusCallFlags.NONE, 5000, None)
+        except GLib.Error:
+            pass
+        self.inhibit = None
+        self.keep_awake = False
+
+
+def acquire_tray_lock():
+    """트레이는 하나만. 이미 떠 있으면 None. 잡으면 PID 를 적어 --toggle-panel 이 신호를 보낼 수 있게 한다."""
+    os.makedirs(runtime_dir(), exist_ok=True)
+    fd = os.open(tray_lock_path(), os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o644)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        os.close(fd)
+        return None
+    os.ftruncate(fd, 0)
+    os.write(fd, f"{os.getpid()}\n".encode())
+    return fd
+
+
+def load_panel_module():
+    """sizer_panel.py 를 찾는다: 저장소(트레이와 같은 폴더) → 설치본(bin/../share/sizer, XDG 데이터 폴더)."""
+    here = os.path.dirname(os.path.realpath(__file__))
+    data_home = os.environ.get("XDG_DATA_HOME", "")
+    data_home = data_home if data_home.startswith("/") else os.path.expanduser("~/.local/share")
+    for directory in (here, os.path.join(os.path.dirname(here), "share", "sizer"),
+                      os.path.join(data_home, "sizer"), "/usr/share/sizer"):
+        if os.path.isfile(os.path.join(directory, "sizer_panel.py")):
+            sys.path.insert(0, directory)
+            try:
+                import sizer_panel
+                return sizer_panel
+            except Exception as error:   # 패널이 없어도 트레이는 동작해야 한다
+                print(f"sizer-tray: 드롭·셸프 패널을 불러오지 못했습니다: {error}", file=sys.stderr)
+                return None
+    return None
+
+
+def main(argv):
+    toggle_panel = "--toggle-panel" in argv
+    if toggle_panel:
+        pid = tray_pid()
+        if pid:
+            os.kill(pid, signal.SIGUSR1)
+            return 0
+    if "--activate" in argv:
+        if not lock_is_held(daemon_lock_path()):
+            start_service()
+        run_detached([sizer_command(), "open", "drop"])
+
+    lock = acquire_tray_lock()
+    if lock is None:
+        return 0
+
+    try:
+        import gi
+        gi.require_version("Gdk", "3.0")
+        from gi.repository import Gdk
+        # 패널 창의 위치 지정·항상 위는 X11 에서만 된다 — Wayland 세션에서는 XWayland 로 연다.
+        Gdk.set_allowed_backends("x11,*")
+        gi.require_version("Gtk", "3.0")
+        gi.require_version("AyatanaAppIndicator3", "0.1")
+        from gi.repository import AyatanaAppIndicator3, Gio, GLib, Gtk
+    except (ImportError, ValueError) as error:
+        message = "상단 바 아이콘에는 python3-gi와 gir1.2-ayatanaappindicator3-0.1이 필요합니다"
+        print(f"sizer-tray: {message} ({error})", file=sys.stderr)
+        run_detached(["notify-send", "--app-name=Sizer", "Sizer", message])
+        return 1
+
+    panel_module = load_panel_module()
+    panel = None
+    tray = None
+    if panel_module:
+        try:
+            gi.require_version("GdkPixbuf", "2.0")
+            gi.require_version("Pango", "1.0")
+            from gi.repository import GdkPixbuf, Pango
+            modules = {"Gtk": Gtk, "Gdk": Gdk, "GLib": GLib, "Gio": Gio, "GdkPixbuf": GdkPixbuf, "Pango": Pango}
+            panel = panel_module.Panel(modules, lambda paths: tray.convert_paths(paths) if tray else 0,
+                                       lambda: panel_module.image_enabled(tray.config_doc) if tray else True)
+        except Exception as error:
+            print(f"sizer-tray: 드롭·셸프 패널을 만들지 못했습니다: {error}", file=sys.stderr)
+            panel_module, panel = None, None
+    tray = Tray(Gtk, GLib, Gio, AyatanaAppIndicator3, panel_module, panel)
+    GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1, tray.on_toggle_panel_signal)
+    if toggle_panel:
+        GLib.idle_add(lambda: tray.on_toggle_panel_signal() and False)
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, sig, Gtk.main_quit)
+    Gtk.main()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

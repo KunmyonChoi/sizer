@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "remove" ]; then
+    systemctl --global disable sizer.service >/dev/null 2>&1 || true
+    echo "Sizer: 이미 실행 중인 데몬은 로그아웃하면 멈춥니다(지금 멈추기: systemctl --user stop sizer)."
+    echo "Sizer: 설정(~/.config/sizer)과 변환 폴더는 지우지 않습니다."
+fi
+
+exit 0

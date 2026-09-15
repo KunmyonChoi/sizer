@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Sizer 트레이
+Name[en]=Sizer Tray
+Comment=상단 바에 Sizer 상태와 메뉴를 표시합니다
+Comment[en]=Shows Sizer status and menu in the top bar
+Exec=@BINDIR@/sizer-tray
+Icon=com.dilly.sizer
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=2

@@ -19,7 +19,9 @@ enum FFmpeg {
             return helpers
         }
         // 2) 일반적인 Homebrew/시스템 경로
-        for dir in searchPaths {
+        // 3) PATH — Linux 의 linuxbrew·conda 등. macOS GUI 앱은 PATH 가 짧아 사실상 2)에서 끝난다.
+        let pathDirs = (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":").map(String.init)
+        for dir in searchPaths + pathDirs {
             let candidate = URL(fileURLWithPath: dir).appendingPathComponent(name)
             if FileManager.default.isExecutableFile(atPath: candidate.path) {
                 return candidate

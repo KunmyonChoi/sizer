@@ -1,0 +1,27 @@
+# Sizer 드롭 폴더 감시 데몬 — systemd 사용자 서비스.
+#
+#   켜기/끄기:   systemctl --user enable --now sizer   /   systemctl --user disable --now sizer
+#   로그:        journalctl --user -u sizer -f
+#   설정 적용:   config.json 을 저장하면 자동으로 다시 읽는다(수동: systemctl --user reload sizer)
+
+[Unit]
+Description=Sizer — 드롭 폴더 영상·이미지 자동 변환
+Documentation=https://github.com/KunmyonChoi/sizer/blob/main/docs/linux.md
+
+[Service]
+Type=simple
+ExecStart=@BINDIR@/sizer daemon
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+# 종료 신호는 데몬에만 보내고, 데몬이 끝나면 남은 자식을 바로 정리한다. 버튼 응답을 기다리는 notify-send 는
+# SIGTERM 을 무시해 control-group(기본값)이면 알림을 닫을 때까지 90초씩 종료가 멈췄다.
+KillMode=mixed
+TimeoutStopSec=10
+# 변환은 백그라운드 작업이다 — 쓰고 있는 앱의 반응성을 해치지 않게 CPU·디스크 우선순위를 낮춘다.
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+
+[Install]
+WantedBy=default.target

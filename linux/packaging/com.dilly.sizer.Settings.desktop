@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Sizer 설정
+Name[en]=Sizer Settings
+Comment=Sizer 폴더·인코딩·트리밍·이미지 설정
+Comment[en]=Folders, encoding, trimming and image settings for Sizer
+Exec=@BINDIR@/sizer-settings
+Icon=com.dilly.sizer
+Terminal=false
+NoDisplay=true
+StartupWMClass=com.dilly.sizer.Settings
