@@ -121,11 +121,19 @@ final class LinuxPlatformTests: XCTestCase {
 
     // MARK: Files(Nautilus) 확장
 
-    /// 우클릭 메뉴가 뜨는 확장자와 엔진이 변환하는 확장자가 어긋나지 않게 한다.
+    /// 우클릭 메뉴·드롭 패널이 받는 확장자와 엔진이 변환하는 확장자가 어긋나지 않게 한다.
     func testNautilusExtensionListsSameExtensionsAsEngine() throws {
+        try assertPythonExtensionSets(in: "packaging/nautilus/sizer-nautilus.py")
+    }
+
+    func testDropPanelListsSameExtensionsAsEngine() throws {
+        try assertPythonExtensionSets(in: "packaging/tray/sizer_panel.py")
+    }
+
+    private func assertPythonExtensionSets(in relativePath: String) throws {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let script = try String(contentsOf: root.appendingPathComponent("packaging/nautilus/sizer-nautilus.py"), encoding: .utf8)
+        let script = try String(contentsOf: root.appendingPathComponent(relativePath), encoding: .utf8)
 
         func set(named name: String) throws -> Set<String> {
             let re = try NSRegularExpression(pattern: name + #"\s*=\s*\{([^}]*)\}"#)
@@ -136,7 +144,7 @@ final class LinuxPlatformTests: XCTestCase {
                 $0.trimmingCharacters(in: CharacterSet(charactersIn: " \n\"'"))
             }.filter { !$0.isEmpty })
         }
-        XCTAssertEqual(try set(named: "VIDEO_EXTENSIONS"), ConversionConfig.videoExtensions)
-        XCTAssertEqual(try set(named: "IMAGE_EXTENSIONS"), ConversionConfig.imageExtensions)
+        XCTAssertEqual(try set(named: "VIDEO_EXTENSIONS"), ConversionConfig.videoExtensions, relativePath)
+        XCTAssertEqual(try set(named: "IMAGE_EXTENSIONS"), ConversionConfig.imageExtensions, relativePath)
     }
 }

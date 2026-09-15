@@ -24,6 +24,7 @@ install_template() {   # 원본 대상 — @BINDIR@ 를 실제 경로로 바꿔 
 echo "▶︎ 설치: $BIN_DIR/sizer"
 install_file 755 "$HERE/bin/sizer" "$BIN_DIR/sizer"
 install_file 755 "$HERE/bin/sizer-tray" "$BIN_DIR/sizer-tray"
+install_file 644 "$HERE/share/sizer/sizer_panel.py" "$DATA_DIR/sizer/sizer_panel.py"
 install_file 755 "$HERE/bin/sizer-settings" "$BIN_DIR/sizer-settings"
 install_template "$HERE/share/sizer/com.dilly.sizer.Settings.desktop" "$DATA_DIR/applications/com.dilly.sizer.Settings.desktop"
 install_template "$HERE/share/sizer/com.dilly.sizer.tray.desktop" "${XDG_CONFIG_HOME:-$HOME/.config}/autostart/com.dilly.sizer.tray.desktop"
@@ -67,7 +68,7 @@ if [ -n "$missing" ]; then
 fi
 case ":$PATH:" in
     *":$BIN_DIR:"*) ;;
-    *) echo "터미널에서 sizer 명령을 쓰려면 PATH 에 $BIN_DIR 를 추가하세요(다시 로그인하면 보통 자동 추가됩니다)." ;;
+    *) echo "터미널에서 sizer 명령을 쓰려면 PATH에 $BIN_DIR를 추가하세요(다시 로그인하면 보통 자동 추가됩니다)." ;;
 esac
-echo "Files 우클릭 메뉴가 안 보이면 Files 를 다시 시작하세요:  nautilus -q"
+echo "Files 우클릭 메뉴가 안 보이면 Files를 다시 시작하세요:  nautilus -q"
 echo "설치 완료 ✅  드롭 폴더 열기: sizer open"

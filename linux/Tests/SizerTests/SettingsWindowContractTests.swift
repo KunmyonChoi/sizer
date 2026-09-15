@@ -98,6 +98,9 @@ final class SettingsWindowContractTests: XCTestCase {
         XCTAssertEqual(explicit.imageFormat, implicit.imageFormat)
         XCTAssertEqual(explicit.imageQuality, implicit.imageQuality)
         XCTAssertEqual(explicit.imageMaxLongEdge, implicit.imageMaxLongEdge)
+        XCTAssertEqual(explicit.panelEnabled, implicit.panelEnabled)
+        XCTAssertEqual(explicit.panelSide, implicit.panelSide)
+        XCTAssertEqual(explicit.panelAddResults, implicit.panelAddResults)
     }
 
     func testPresetsMatchSwiftSensitivityPresets() throws {

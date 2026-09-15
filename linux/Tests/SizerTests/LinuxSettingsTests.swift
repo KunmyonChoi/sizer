@@ -92,7 +92,8 @@ final class LinuxSettingsTests: XCTestCase {
                     "mergeGapMax": 1, "minKeep": 0.5, "pad": 0.2, "minKeepRatio": 0.1, "smoothTransitions": true,
                     "adaptiveThreshold": true, "fastForwardSpeed": 8, "fastForwardMinDuration": 4,
                     "fastForwardMuteAudio": false, "fastForwardBadge": false},
-          "image": {"enabled": false, "format": "jpeg", "quality": 0.5, "maxLongEdge": 2000}
+          "image": {"enabled": false, "format": "jpeg", "quality": 0.5, "maxLongEdge": 2000},
+          "panel": {"enabled": false, "side": "left", "addResults": false}
         }
         """)
         XCTAssertEqual(warnings, [])
@@ -122,6 +123,9 @@ final class LinuxSettingsTests: XCTestCase {
         XCTAssertEqual(s.imageFormat, .jpeg)
         XCTAssertEqual(s.imageQuality, 0.5)
         XCTAssertEqual(s.imageMaxLongEdge, 2000)
+        XCTAssertFalse(s.panelEnabled)
+        XCTAssertEqual(s.panelSide, "left")
+        XCTAssertFalse(s.panelAddResults)
     }
 
     // MARK: 잘못된 값
@@ -132,7 +136,8 @@ final class LinuxSettingsTests: XCTestCase {
           "folders": {"drop": "relative/path"},
           "video": {"codec": "h264_videotoolbox", "crf": 99},
           "still": {"mode": "fast", "fastForwardSpeed": 3},
-          "image": {"format": "webp"}
+          "image": {"format": "webp"},
+          "panel": {"side": "top"}
         }
         """)
         XCTAssertEqual(s.dropFolder.path, "/home/u/Videos/Sizer/drop")
@@ -141,8 +146,10 @@ final class LinuxSettingsTests: XCTestCase {
         XCTAssertEqual(s.stillMode, .fastForward)
         XCTAssertEqual(s.ffSpeed, 4)
         XCTAssertEqual(s.imageFormat, .avif)
-        XCTAssertEqual(warnings.count, 6, "\(warnings)")
-        for key in ["folders.drop", "video.codec", "video.crf", "still.mode", "still.fastForwardSpeed", "image.format"] {
+        XCTAssertEqual(s.panelSide, "right")
+        XCTAssertEqual(warnings.count, 7, "\(warnings)")
+        for key in ["folders.drop", "video.codec", "video.crf", "still.mode", "still.fastForwardSpeed", "image.format",
+                    "panel.side"] {
             XCTAssertTrue(warnings.contains { $0.hasPrefix(key) }, "\(key) 경고 없음: \(warnings)")
         }
     }

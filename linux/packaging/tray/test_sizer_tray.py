@@ -74,6 +74,12 @@ class MenuModelTests(unittest.TestCase):
         self.assertEqual(find(model, "감시 재개")["action"], "resume")
         self.assertEqual(tray.icon_name(s, True, False), "sizer-paused")
 
+    def test_panel_check_item_only_when_panel_available(self):
+        self.assertNotIn("드롭·셸프 패널", labels(tray.menu_model(status(), True, False)))
+        item = find(tray.menu_model(status(), True, False, panel_enabled=True), "드롭·셸프 패널")
+        self.assertEqual((item["kind"], item["action"], item["active"]), ("check", "panel", True))
+        self.assertFalse(find(tray.menu_model(None, False, False, panel_enabled=False), "드롭·셸프 패널")["active"])
+
     def test_keep_awake_check_and_icon(self):
         model = tray.menu_model(status(), True, keep_awake=True)
         self.assertTrue(find(model, "모니터 꺼짐 방지")["active"])
@@ -142,6 +148,20 @@ class PlatformTests(unittest.TestCase):
             finally:
                 holder.close()
             self.assertFalse(tray.lock_is_held(path))
+
+    def test_tray_pid_reads_lock_owner(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "tray.lock")
+            self.assertIsNone(tray.tray_pid(path))
+            holder = open(path, "w")
+            holder.write("4242\n")
+            holder.flush()
+            fcntl.flock(holder, fcntl.LOCK_EX)
+            try:
+                self.assertEqual(tray.tray_pid(path), 4242)
+            finally:
+                holder.close()
+            self.assertIsNone(tray.tray_pid(path), "잠금이 풀리면 트레이가 없다")
 
     def test_icons_cover_every_name_and_are_valid_svg(self):
         icons = tray.icon_svgs()

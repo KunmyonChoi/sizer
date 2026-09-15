@@ -13,6 +13,7 @@ fi
 
 pkill -x sizer-tray 2>/dev/null || true
 rm -f "$BIN_DIR/sizer" "$BIN_DIR/sizer-tray" "$BIN_DIR/sizer-settings" \
+      "$DATA_DIR/sizer/sizer_panel.py" \
       "$DATA_DIR/applications/com.dilly.sizer.Settings.desktop" \
       "${XDG_CONFIG_HOME:-$HOME/.config}/autostart/com.dilly.sizer.tray.desktop" \
       "$DATA_DIR/systemd/user/sizer.service" \
@@ -25,4 +26,4 @@ if command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/d
 fi
 command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database -q "$DATA_DIR/applications" || true
 
-echo "Sizer 를 제거했습니다. 설정(~/.config/sizer)과 변환 폴더는 그대로 남아 있습니다."
+echo "Sizer를 제거했습니다. 설정(~/.config/sizer)과 변환 폴더는 그대로 남아 있습니다."

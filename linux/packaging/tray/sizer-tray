@@ -4,8 +4,11 @@
 # macOS 메뉴바 앱(MenuBarView)에 해당한다. 변환은 sizer 데몬(systemd 사용자 서비스)이 하고, 이 프로세스는
 # 데몬이 쓰는 상태 파일($XDG_RUNTIME_DIR/sizer/status.json)을 보여 주고 `sizer` 명령으로 조작만 한다.
 #
-#   sizer-tray             트레이 실행(로그인 시 자동 시작 항목)
-#   sizer-tray --activate  앱 목록의 "Sizer": 서비스와 트레이를 켜고 드롭 폴더를 연다
+#   sizer-tray                 트레이 실행(로그인 시 자동 시작 항목)
+#   sizer-tray --activate      앱 목록의 "Sizer": 서비스와 트레이를 켜고 드롭 폴더를 연다
+#   sizer-tray --toggle-panel  드롭·셸프 패널 펼치기/접기(GNOME 사용자 지정 단축키용)
+#
+# 가장자리 드롭·셸프 패널(sizer_panel.py)도 이 프로세스가 그린다.
 #
 # 필요 패키지: python3-gi gir1.2-ayatanaappindicator3-0.1
 # GNOME 은 AppIndicator 확장이 있어야 아이콘이 보인다(Ubuntu 는 기본 포함).
@@ -52,6 +55,28 @@ def recent_path():
 
 def daemon_lock_path():
     return os.path.join(runtime_dir(), "daemon.lock")
+
+
+def tray_lock_path():
+    return os.path.join(runtime_dir(), "tray.lock")
+
+
+def config_path():
+    value = os.environ.get("XDG_CONFIG_HOME", "")
+    base = value if value.startswith("/") else os.path.join(os.path.expanduser("~"), ".config")
+    return os.path.join(base, "sizer", "config.json")
+
+
+def tray_pid(path=None):
+    """떠 있는 트레이의 PID(tray.lock 에 적어 둔 값). 없으면 None."""
+    path = path or tray_lock_path()
+    if not lock_is_held(path):
+        return None
+    try:
+        with open(path, encoding="utf-8") as f:
+            return int(f.read().strip())
+    except (OSError, ValueError):
+        return None
 
 
 def lock_is_held(path):
@@ -161,7 +186,7 @@ def _item(label, action, arg=None):
 SEPARATOR = {"kind": "separator"}
 
 
-def menu_model(status, running, keep_awake, fallback_recent=None):
+def menu_model(status, running, keep_awake, fallback_recent=None, panel_enabled=None):
     """메뉴 항목 목록. 데몬이 꺼져 있으면 recent.json(fallback_recent)의 최근 변환을 보여 준다."""
     status = status if running else None
     version = (status or {}).get("version")
@@ -188,6 +213,8 @@ def menu_model(status, running, keep_awake, fallback_recent=None):
         paused = bool(status) and status.get("state") == "paused"
         model.append(_item("지금 다시 스캔", "rescan"))
         model.append(_item("감시 재개", "resume") if paused else _item("감시 일시정지", "pause"))
+    if panel_enabled is not None:   # 패널 모듈을 불러오지 못했으면 항목을 숨긴다
+        model.append({"kind": "check", "label": "드롭·셸프 패널", "action": "panel", "active": panel_enabled})
     model.append({"kind": "check", "label": "모니터 꺼짐 방지", "action": "keep_awake", "active": keep_awake})
     model.append(_item("설정…", "settings"))
     model += [SEPARATOR, _item("로그 열기", "folder", "logs"), _item("Sizer 종료", "quit")]
@@ -233,8 +260,13 @@ def write_icons(directory):
 # ── 트레이 ───────────────────────────────────────────────────────────────────
 
 class Tray:
-    def __init__(self, Gtk, GLib, Gio, AppIndicator):
+    def __init__(self, Gtk, GLib, Gio, AppIndicator, panel_module=None, panel=None):
         self.Gtk, self.GLib, self.Gio = Gtk, GLib, Gio
+        self.panel_module, self.panel = panel_module, panel
+        self.config_stamp = None
+        self.config_doc = {}
+        self.panel_config = dict(panel_module.PANEL_DEFAULTS) if panel_module else None
+        self.seen_results = None
         self.running = False
         self.status = None
         self.fallback_recent = None
@@ -265,13 +297,51 @@ class Tray:
         if stamp != self.status_stamp:
             self.status_stamp = stamp
             self.status = read_json(status_path()) if stamp else None
+            self._offer_results()
+        config_stamp = self._stamp(config_path())
+        if config_stamp != self.config_stamp:
+            self.config_stamp = config_stamp
+            doc = read_json(config_path())
+            self.config_doc = doc if isinstance(doc, dict) else {}
+            if self.panel:
+                self.panel_config = self.panel_module.panel_config(self.config_doc)
+                self.panel.apply(self.panel_config["enabled"], self.panel_config["side"])
         recent_stamp = None if self.running else self._stamp(recent_path())
-        signature = (self.running, stamp, recent_stamp, self.keep_awake)
+        signature = (self.running, stamp, recent_stamp, self.keep_awake, config_stamp)
         if signature != self.signature:
             self.signature = signature
             self.fallback_recent = None if self.running else read_json(recent_path())
             self.rebuild_menu()
         self.update_icon()
+
+    def _offer_results(self):
+        """새 변환 결과를 보관 트레이에 얹는다. 처음 한 번은 기존 결과를 '본 것'으로만 표시."""
+        if not (self.panel and self.running and self.status):
+            return
+        jobs = self.status.get("recent") or []
+        if self.seen_results is None:
+            self.seen_results = set()
+            self.panel_module.new_results(jobs, self.seen_results)
+            return
+        fresh = self.panel_module.new_results(jobs, self.seen_results)
+        if fresh and self.panel_config["addResults"]:
+            self.panel.add_results(fresh)
+
+    def convert_paths(self, paths):
+        """패널 변환존에 놓인 파일을 `sizer add` 로 넘긴다. 맡긴 개수를 돌려준다."""
+        supported = self.panel_module.supported_paths(paths, self.panel_module.image_enabled(self.config_doc))
+        if supported:
+            run_detached([sizer_command(), "add", "--", *supported])
+        return len(supported)
+
+    def on_toggle_panel_signal(self):
+        if self.panel:
+            if not self.panel_config["enabled"]:
+                self.panel_module.set_config_value(config_path(), "panel", "enabled", True)
+                self.panel_config["enabled"] = True
+                self.panel.apply(True, self.panel_config["side"])
+            self.panel.toggle_from_shortcut()
+        return True
 
     @staticmethod
     def _stamp(path):
@@ -302,14 +372,15 @@ class Tray:
     def rebuild_menu(self):
         Gtk = self.Gtk
         menu = Gtk.Menu()
-        for entry in menu_model(self.status, self.running, self.keep_awake, self.fallback_recent):
+        panel_enabled = self.panel_config["enabled"] if self.panel else None
+        for entry in menu_model(self.status, self.running, self.keep_awake, self.fallback_recent, panel_enabled):
             kind = entry["kind"]
             if kind == "separator":
                 item = Gtk.SeparatorMenuItem()
             elif kind == "check":
                 item = Gtk.CheckMenuItem(label=entry["label"])
                 item.set_active(entry["active"])
-                item.connect("toggled", self.on_keep_awake)
+                item.connect("toggled", self.on_keep_awake if entry["action"] == "keep_awake" else self.on_panel_toggle)
             else:
                 item = Gtk.MenuItem(label=entry["label"])
                 if kind == "text":
@@ -355,6 +426,14 @@ class Tray:
                 self.release_keep_awake()
         self.GLib.idle_add(self._refresh_once)   # 토글 신호 처리 중에 메뉴를 갈아 끼우지 않는다
 
+    def on_panel_toggle(self, item):
+        want = item.get_active()
+        if self.panel and want != self.panel_config["enabled"]:
+            error = self.panel_module.set_config_value(config_path(), "panel", "enabled", want)
+            if error:
+                print(f"sizer-tray: {error}", file=sys.stderr)
+        self.GLib.idle_add(self._refresh_once)   # 설정 파일 변경을 읽어 패널에 적용
+
     def _refresh_once(self):
         self.refresh()
         return False
@@ -399,18 +478,44 @@ class Tray:
 
 
 def acquire_tray_lock():
-    """트레이는 하나만. 이미 떠 있으면 None."""
+    """트레이는 하나만. 이미 떠 있으면 None. 잡으면 PID 를 적어 --toggle-panel 이 신호를 보낼 수 있게 한다."""
     os.makedirs(runtime_dir(), exist_ok=True)
-    fd = os.open(os.path.join(runtime_dir(), "tray.lock"), os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o644)
+    fd = os.open(tray_lock_path(), os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o644)
     try:
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
         os.close(fd)
         return None
+    os.ftruncate(fd, 0)
+    os.write(fd, f"{os.getpid()}\n".encode())
     return fd
 
 
+def load_panel_module():
+    """sizer_panel.py 를 찾는다: 저장소(트레이와 같은 폴더) → 설치본(bin/../share/sizer, XDG 데이터 폴더)."""
+    here = os.path.dirname(os.path.realpath(__file__))
+    data_home = os.environ.get("XDG_DATA_HOME", "")
+    data_home = data_home if data_home.startswith("/") else os.path.expanduser("~/.local/share")
+    for directory in (here, os.path.join(os.path.dirname(here), "share", "sizer"),
+                      os.path.join(data_home, "sizer"), "/usr/share/sizer"):
+        if os.path.isfile(os.path.join(directory, "sizer_panel.py")):
+            sys.path.insert(0, directory)
+            try:
+                import sizer_panel
+                return sizer_panel
+            except Exception as error:   # 패널이 없어도 트레이는 동작해야 한다
+                print(f"sizer-tray: 드롭·셸프 패널을 불러오지 못했습니다: {error}", file=sys.stderr)
+                return None
+    return None
+
+
 def main(argv):
+    toggle_panel = "--toggle-panel" in argv
+    if toggle_panel:
+        pid = tray_pid()
+        if pid:
+            os.kill(pid, signal.SIGUSR1)
+            return 0
     if "--activate" in argv:
         if not lock_is_held(daemon_lock_path()):
             start_service()
@@ -422,16 +527,37 @@ def main(argv):
 
     try:
         import gi
+        gi.require_version("Gdk", "3.0")
+        from gi.repository import Gdk
+        # 패널 창의 위치 지정·항상 위는 X11 에서만 된다 — Wayland 세션에서는 XWayland 로 연다.
+        Gdk.set_allowed_backends("x11,*")
         gi.require_version("Gtk", "3.0")
         gi.require_version("AyatanaAppIndicator3", "0.1")
         from gi.repository import AyatanaAppIndicator3, Gio, GLib, Gtk
     except (ImportError, ValueError) as error:
-        message = "상단 바 아이콘에는 python3-gi 와 gir1.2-ayatanaappindicator3-0.1 이 필요합니다"
+        message = "상단 바 아이콘에는 python3-gi와 gir1.2-ayatanaappindicator3-0.1이 필요합니다"
         print(f"sizer-tray: {message} ({error})", file=sys.stderr)
         run_detached(["notify-send", "--app-name=Sizer", "Sizer", message])
         return 1
 
-    Tray(Gtk, GLib, Gio, AyatanaAppIndicator3)
+    panel_module = load_panel_module()
+    panel = None
+    tray = None
+    if panel_module:
+        try:
+            gi.require_version("GdkPixbuf", "2.0")
+            gi.require_version("Pango", "1.0")
+            from gi.repository import GdkPixbuf, Pango
+            modules = {"Gtk": Gtk, "Gdk": Gdk, "GLib": GLib, "Gio": Gio, "GdkPixbuf": GdkPixbuf, "Pango": Pango}
+            panel = panel_module.Panel(modules, lambda paths: tray.convert_paths(paths) if tray else 0,
+                                       lambda: panel_module.image_enabled(tray.config_doc) if tray else True)
+        except Exception as error:
+            print(f"sizer-tray: 드롭·셸프 패널을 만들지 못했습니다: {error}", file=sys.stderr)
+            panel_module, panel = None, None
+    tray = Tray(Gtk, GLib, Gio, AyatanaAppIndicator3, panel_module, panel)
+    GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1, tray.on_toggle_panel_signal)
+    if toggle_panel:
+        GLib.idle_add(lambda: tray.on_toggle_panel_signal() and False)
     for sig in (signal.SIGINT, signal.SIGTERM):
         GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, sig, Gtk.main_quit)
     Gtk.main()

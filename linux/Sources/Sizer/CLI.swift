@@ -202,7 +202,7 @@ public enum SizerCLI {
             } else {
                 failures += 1
                 failureNote = outcome.detail == "ffmpeg 없음"
-                    ? "ffmpeg 가 없습니다 — sudo apt install ffmpeg"
+                    ? "ffmpeg가 없습니다 — sudo apt install ffmpeg"
                     : "원본은 그대로 있습니다 · 로그: \(Paths.abbreviate(AppLogger.logFileURL.path))"
                 printError("  ✗ 실패 — \(failureNote)")
             }
@@ -312,7 +312,7 @@ public enum SizerCLI {
                 let backup = url.appendingPathExtension("bak")
                 try? fm.removeItem(at: backup)
                 try? fm.moveItem(at: url, to: backup)
-                print("기존 설정을 \(Paths.abbreviate(backup.path)) 로 옮겼습니다.")
+                print("기존 설정을 \(Paths.abbreviate(backup.path))로 옮겼습니다.")
             }
             _ = try? LinuxSettings.loadOrCreate(at: url)
             print("기본 설정 파일을 만들었습니다: \(url.path)")

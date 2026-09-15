@@ -28,7 +28,7 @@ enum ImageConverter {
         var input = src
         if heifInputExtensions.contains(src.pathExtension.lowercased()) {
             guard let decoder = heifDecoderURL else {
-                return failure("HEIC 입력에는 heif-dec 가 필요합니다(sudo apt install libheif-examples)")
+                return failure("HEIC 입력에는 heif-dec가 필요합니다(sudo apt install libheif-examples)")
             }
             let png = tempURL("png")
             let r = FFmpeg.run(decoder, [src.path, png.path])
@@ -40,7 +40,7 @@ enum ImageConverter {
 
         if format == .heic {
             guard let encoder = Executables.find("heif-enc") else {
-                return failure("HEIC 출력에는 heif-enc 가 필요합니다(sudo apt install libheif-examples)")
+                return failure("HEIC 출력에는 heif-enc가 필요합니다(sudo apt install libheif-examples)")
             }
             // 크기 조정은 ffmpeg 로 무손실 PNG 중간본을 만든 뒤 heif-enc 로 인코딩한다.
             let png = tempURL("png")
@@ -64,7 +64,7 @@ enum ImageConverter {
         if format == .avif {
             avifEncoder = detectAVIFEncoder(ffmpeg)
             guard avifEncoder != nil else {
-                return failure("이 ffmpeg 에는 AV1 인코더(libaom-av1/libsvtav1)가 없어 AVIF 로 저장할 수 없습니다")
+                return failure("이 ffmpeg에는 AV1 인코더(libaom-av1/libsvtav1)가 없어 AVIF로 저장할 수 없습니다")
             }
         }
         let r = FFmpeg.run(ffmpeg, ffmpegArguments(input: input, output: dst, format: format, quality: quality,

@@ -37,6 +37,11 @@ struct LinuxSettings {
     var imageQuality = 0.8
     var imageMaxLongEdge = 0
 
+    /// 가장자리 드롭·셸프 패널 — sizer-tray 가 그리고, 데몬은 값을 검증만 한다.
+    var panelEnabled = true
+    var panelSide = "right"
+    var panelAddResults = true
+
     init(baseFolder: URL = LinuxSettings.defaultBaseFolder) {
         dropFolder = baseFolder.appendingPathComponent("drop", isDirectory: true)
         outputFolder = baseFolder.appendingPathComponent("output", isDirectory: true)
@@ -179,6 +184,13 @@ struct LinuxSettings {
             s.ffBadge = st.fastForwardBadge ?? s.ffBadge
         }
 
+        if let panel = file.panel {
+            s.panelEnabled = panel.enabled ?? s.panelEnabled
+            s.panelSide = choice(panel.side, "panel.side", s.panelSide, { ["left", "right"].contains($0) ? $0 : nil },
+                                 hint: " (left, right)")
+            s.panelAddResults = panel.addResults ?? s.panelAddResults
+        }
+
         if let im = file.image {
             s.imageEnabled = im.enabled ?? s.imageEnabled
             s.imageFormat = choice(im.format, "image.format", s.imageFormat, ImageFormat.init(rawValue:),
@@ -208,6 +220,7 @@ struct LinuxSettings {
             var fastForwardSpeed: Int?, fastForwardMinDuration: Double?, fastForwardMuteAudio: Bool?, fastForwardBadge: Bool?
         }
         struct Image: Decodable { var enabled: Bool?, format: String?, quality: Double?, maxLongEdge: Int? }
+        struct Panel: Decodable { var enabled: Bool?, side: String?, addResults: Bool? }
 
         var folders: Folders?
         var notifications: Bool?
@@ -216,17 +229,19 @@ struct LinuxSettings {
         var video: Video?
         var still: Still?
         var image: Image?
+        var panel: Panel?
     }
 
     /// 허용 키. 오타(예: "notification")를 조용히 무시하지 않고 경고하기 위해 File 과 같게 유지한다(테스트가 검사).
     static let schema: [String: Set<String>] = [
-        "": ["folders", "notifications", "openOutputAfterAdd", "processedRetentionDays", "video", "still", "image"],
+        "": ["folders", "notifications", "openOutputAfterAdd", "processedRetentionDays", "panel", "video", "still", "image"],
         "folders": ["drop", "output", "processed", "failed"],
         "video": ["codec", "crf", "preset", "maxLongEdge", "audioBitrate", "outputSuffix"],
         "still": ["mode", "sensitivity", "noiseDb", "minStillDuration", "mergeGapMax", "minKeep", "pad",
                   "minKeepRatio", "smoothTransitions", "adaptiveThreshold",
                   "fastForwardSpeed", "fastForwardMinDuration", "fastForwardMuteAudio", "fastForwardBadge"],
         "image": ["enabled", "format", "quality", "maxLongEdge"],
+        "panel": ["enabled", "side", "addResults"],
     ]
 
     static func unknownKeys(in data: Data) -> [String] {
@@ -258,6 +273,11 @@ struct LinuxSettings {
           "notifications": true,
           "openOutputAfterAdd": true,
           "processedRetentionDays": 30,
+          "panel": {
+            "enabled": true,
+            "side": "right",
+            "addResults": true
+          },
           "video": {
             "codec": "libx264",
             "crf": 26,

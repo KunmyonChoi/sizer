@@ -63,6 +63,11 @@ CONTROLS = {
     "notifications": _switch("변환 완료·실패 알림 표시", True),
     "openOutputAfterAdd": _switch("우클릭 변환 후 출력 폴더 열기", True,
                                   "Files 우클릭 \"Sizer로 변환\"으로 넣은 파일이 끝나면 출력 폴더를 엽니다"),
+    "panel.enabled": _switch("드롭·셸프 패널 표시", True,
+                             "화면 가장자리 탭에 파일을 끌어다 놓으면 변환하거나 보관합니다"),
+    "panel.side": _choice("패널 위치", "right", [["right", "오른쪽"], ["left", "왼쪽"]]),
+    "panel.addResults": _switch("변환 결과를 보관 트레이에 추가", True,
+                                "끝난 결과를 보관 트레이 맨 앞에 NEW로 얹어 바로 끌어낼 수 있게 합니다"),
     "processedRetentionDays": _choice("오래된 원본 자동 삭제", 30,
                                       [[0, "끔"], [7, "7일 뒤"], [30, "30일 뒤"], [90, "90일 뒤"], [180, "180일 뒤"]],
                                       "변환에 성공한 원본을 processed 폴더에서 지웁니다"),
@@ -98,7 +103,7 @@ CONTROLS = {
     "image.format": _choice("출력 포맷", "avif",
                             [["avif", "AVIF (고효율)"], ["heic", "HEIC (Apple 고압축)"],
                              ["jpeg", "JPEG (범용)"], ["png", "PNG (무손실)"]]),
-    "image.quality": _number("품질", 0.8, 0.3, 1.0, 0.05, 2, "높을수록 고화질·큰 용량. PNG 는 적용되지 않습니다"),
+    "image.quality": _number("품질", 0.8, 0.3, 1.0, 0.05, 2, "높을수록 고화질·큰 용량. PNG에는 적용되지 않습니다"),
     "image.maxLongEdge": _choice("최대 크기(장변, px)", 0,
                                  [[0, "원본 유지"], [1280, "1280"], [1920, "1920"], [2560, "2560"], [3840, "3840"]]),
 }
@@ -108,6 +113,7 @@ PAGES = [
     ("일반", "preferences-system-symbolic", [
         ("폴더", None, ["folders.drop", "folders.output", "folders.processed", "folders.failed"]),
         ("알림", None, ["notifications", "openOutputAfterAdd"]),
+        ("드롭 & 셸프", None, ["panel.enabled", "panel.side", "panel.addResults"]),
         ("정리", None, ["processedRetentionDays"]),
     ]),
     ("인코딩", "video-x-generic-symbolic", [
@@ -360,7 +366,7 @@ def run_gui():
         gi.require_version("Adw", "1")
         from gi.repository import Adw, Gio, GLib, Gtk
     except (ImportError, ValueError) as error:
-        message = "설정 창에는 gir1.2-gtk-4.0 과 gir1.2-adw-1 이 필요합니다"
+        message = "설정 창에는 gir1.2-gtk-4.0과 gir1.2-adw-1이 필요합니다"
         print(f"sizer-settings: {message} ({error})", file=sys.stderr)
         run_detached(["notify-send", "--app-name=Sizer", "Sizer", message])
         return 1
@@ -559,7 +565,7 @@ def run_gui():
         def refresh_service(self):
             state = command_output(["systemctl", "--user", "is-active", "sizer.service"])
             self.service_row.set_subtitle({"active": "실행 중 — 저장하면 바로 적용됩니다",
-                                           "activating": "시작 중"}.get(state, "꺼짐 — 트레이 메뉴나 앱 목록에서 Sizer 를 실행하세요"))
+                                           "activating": "시작 중"}.get(state, "꺼짐 — 트레이 메뉴나 앱 목록에서 Sizer를 실행하세요"))
             return True
 
     def on_activate(app):

@@ -73,6 +73,7 @@ NAME="sizer-$VERSION-linux-$TAR_ARCH"
 T="$STAGE/$NAME"
 install -Dm755 "$STAGE/sizer" "$T/bin/sizer"
 install -Dm755 linux/packaging/tray/sizer-tray "$T/bin/sizer-tray"
+install -Dm644 linux/packaging/tray/sizer_panel.py "$T/share/sizer/sizer_panel.py"
 install -Dm755 linux/packaging/settings/sizer-settings "$T/bin/sizer-settings"
 install -Dm644 linux/packaging/com.dilly.sizer.Settings.desktop "$T/share/sizer/com.dilly.sizer.Settings.desktop"
 install -Dm644 linux/packaging/com.dilly.sizer.tray.desktop "$T/share/sizer/com.dilly.sizer.tray.desktop"
@@ -89,6 +90,7 @@ tar -C "$STAGE" -czf "dist/$NAME.tar.gz" "$NAME"
 D="$STAGE/deb"
 install -Dm755 "$STAGE/sizer" "$D/usr/bin/sizer"
 install -Dm755 linux/packaging/tray/sizer-tray "$D/usr/bin/sizer-tray"
+install -Dm644 linux/packaging/tray/sizer_panel.py "$D/usr/share/sizer/sizer_panel.py"
 install -Dm755 linux/packaging/settings/sizer-settings "$D/usr/bin/sizer-settings"
 mkdir -p "$D/usr/lib/systemd/user" "$D/usr/share/applications" "$D/etc/xdg/autostart"
 sed 's|@BINDIR@|/usr/bin|g' linux/packaging/com.dilly.sizer.tray.desktop > "$D/etc/xdg/autostart/com.dilly.sizer.tray.desktop"
@@ -130,7 +132,7 @@ Architecture: $DEB_ARCH
 Maintainer: $MAINTAINER
 Installed-Size: $(du -sk "$D/usr" | cut -f1)
 Depends: ffmpeg, python3, $SHLIBS
-Recommends: libnotify-bin, python3-nautilus, python3-gi, gir1.2-ayatanaappindicator3-0.1, gir1.2-gtk-4.0, gir1.2-adw-1, gnome-shell-extension-appindicator
+Recommends: libnotify-bin, python3-nautilus, python3-gi, gir1.2-ayatanaappindicator3-0.1, gir1.2-gtk-4.0, gir1.2-adw-1, gnome-shell-extension-appindicator, gnome-sushi
 Suggests: libheif-examples, libheif-plugin-x265, libheif-plugin-libde265
 Section: video
 Priority: optional
@@ -141,7 +143,8 @@ Description: drop-folder video and image compressor
  stretches of screen recordings can be cut or fast-forwarded.
  .
  Runs as a systemd user service with a top-bar tray menu (status, recent
- conversions, pause, keep-awake) and a GTK settings window, notifies with
+ conversions, pause, keep-awake), an edge drop/shelf panel and a GTK settings
+ window, notifies with
  open/reveal buttons, and adds
  a "Sizer로 변환" item to the Files (Nautilus) context menu.
 EOF

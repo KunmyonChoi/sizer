@@ -84,7 +84,7 @@ final class Daemon {
             if ConversionConfig.videoExtensions.contains(ext) {
                 guard FFmpeg.isAvailable else {
                     if !warnedMissingFFmpeg {
-                        AppLogger.error("ffmpeg 가 없어 영상을 변환할 수 없습니다 — sudo apt install ffmpeg")
+                        AppLogger.error("ffmpeg가 없어 영상을 변환할 수 없습니다 — sudo apt install ffmpeg")
                         warnedMissingFFmpeg = true
                     }
                     continue
@@ -269,7 +269,7 @@ final class Daemon {
             AppLogger.warn("notify-send 없음 — 알림을 표시하지 않습니다(sudo apt install libnotify-bin)")
         }
         if settings.imageEnabled, settings.imageFormat == .heic, !ImageConverter.heicEncodingAvailable() {
-            AppLogger.warn("HEIC 출력에는 heif-enc 와 HEVC 플러그인이 필요합니다(sudo apt install libheif-examples libheif-plugin-x265)")
+            AppLogger.warn("HEIC 출력에는 heif-enc와 HEVC 플러그인이 필요합니다(sudo apt install libheif-examples libheif-plugin-x265)")
         }
     }
 
