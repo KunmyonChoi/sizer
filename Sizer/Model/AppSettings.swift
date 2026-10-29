@@ -48,6 +48,18 @@ final class AppSettings: ObservableObject {
     @Published var snapRightThirdKeyCode: Int { didSet { save(snapRightThirdKeyCode, .snapRightThirdKeyCode) } }
     @Published var snapRightThirdModifiers: Int { didSet { save(snapRightThirdModifiers, .snapRightThirdModifiers) } }
     @Published var snapRightThirdDisplay: String { didSet { save(snapRightThirdDisplay, .snapRightThirdDisplay) } }
+    @Published var snapTopLeftKeyCode: Int { didSet { save(snapTopLeftKeyCode, .snapTopLeftKeyCode) } }
+    @Published var snapTopLeftModifiers: Int { didSet { save(snapTopLeftModifiers, .snapTopLeftModifiers) } }
+    @Published var snapTopLeftDisplay: String { didSet { save(snapTopLeftDisplay, .snapTopLeftDisplay) } }
+    @Published var snapTopRightKeyCode: Int { didSet { save(snapTopRightKeyCode, .snapTopRightKeyCode) } }
+    @Published var snapTopRightModifiers: Int { didSet { save(snapTopRightModifiers, .snapTopRightModifiers) } }
+    @Published var snapTopRightDisplay: String { didSet { save(snapTopRightDisplay, .snapTopRightDisplay) } }
+    @Published var snapBottomLeftKeyCode: Int { didSet { save(snapBottomLeftKeyCode, .snapBottomLeftKeyCode) } }
+    @Published var snapBottomLeftModifiers: Int { didSet { save(snapBottomLeftModifiers, .snapBottomLeftModifiers) } }
+    @Published var snapBottomLeftDisplay: String { didSet { save(snapBottomLeftDisplay, .snapBottomLeftDisplay) } }
+    @Published var snapBottomRightKeyCode: Int { didSet { save(snapBottomRightKeyCode, .snapBottomRightKeyCode) } }
+    @Published var snapBottomRightModifiers: Int { didSet { save(snapBottomRightModifiers, .snapBottomRightModifiers) } }
+    @Published var snapBottomRightDisplay: String { didSet { save(snapBottomRightDisplay, .snapBottomRightDisplay) } }
     @Published var snapMaxKeyCode: Int { didSet { save(snapMaxKeyCode, .snapMaxKeyCode) } }
     @Published var snapMaxModifiers: Int { didSet { save(snapMaxModifiers, .snapMaxModifiers) } }
     @Published var snapMaxDisplay: String { didSet { save(snapMaxDisplay, .snapMaxDisplay) } }
@@ -143,6 +155,10 @@ final class AppSettings: ObservableObject {
         case .rightHalf:  return snapRightKeyCode
         case .leftThird:  return snapLeftThirdKeyCode
         case .rightThird: return snapRightThirdKeyCode
+        case .topLeft:     return snapTopLeftKeyCode
+        case .topRight:    return snapTopRightKeyCode
+        case .bottomLeft:  return snapBottomLeftKeyCode
+        case .bottomRight: return snapBottomRightKeyCode
         case .maximize:   return snapMaxKeyCode
         case .prevScreen: return snapPrevScreenKeyCode
         case .nextScreen: return snapNextScreenKeyCode
@@ -155,6 +171,10 @@ final class AppSettings: ObservableObject {
         case .rightHalf:  return snapRightModifiers
         case .leftThird:  return snapLeftThirdModifiers
         case .rightThird: return snapRightThirdModifiers
+        case .topLeft:     return snapTopLeftModifiers
+        case .topRight:    return snapTopRightModifiers
+        case .bottomLeft:  return snapBottomLeftModifiers
+        case .bottomRight: return snapBottomRightModifiers
         case .maximize:   return snapMaxModifiers
         case .prevScreen: return snapPrevScreenModifiers
         case .nextScreen: return snapNextScreenModifiers
@@ -167,6 +187,10 @@ final class AppSettings: ObservableObject {
         case .rightHalf:  return snapRightDisplay
         case .leftThird:  return snapLeftThirdDisplay
         case .rightThird: return snapRightThirdDisplay
+        case .topLeft:     return snapTopLeftDisplay
+        case .topRight:    return snapTopRightDisplay
+        case .bottomLeft:  return snapBottomLeftDisplay
+        case .bottomRight: return snapBottomRightDisplay
         case .maximize:   return snapMaxDisplay
         case .prevScreen: return snapPrevScreenDisplay
         case .nextScreen: return snapNextScreenDisplay
@@ -183,6 +207,10 @@ final class AppSettings: ObservableObject {
         case .rightHalf:  snapRightKeyCode = keyCode; snapRightModifiers = modifiers; snapRightDisplay = display
         case .leftThird:  snapLeftThirdKeyCode = keyCode;  snapLeftThirdModifiers = modifiers;  snapLeftThirdDisplay = display
         case .rightThird: snapRightThirdKeyCode = keyCode; snapRightThirdModifiers = modifiers; snapRightThirdDisplay = display
+        case .topLeft:     snapTopLeftKeyCode = keyCode;     snapTopLeftModifiers = modifiers;     snapTopLeftDisplay = display
+        case .topRight:    snapTopRightKeyCode = keyCode;    snapTopRightModifiers = modifiers;    snapTopRightDisplay = display
+        case .bottomLeft:  snapBottomLeftKeyCode = keyCode;  snapBottomLeftModifiers = modifiers;  snapBottomLeftDisplay = display
+        case .bottomRight: snapBottomRightKeyCode = keyCode; snapBottomRightModifiers = modifiers; snapBottomRightDisplay = display
         case .maximize:   snapMaxKeyCode = keyCode;   snapMaxModifiers = modifiers;   snapMaxDisplay = display
         case .prevScreen: snapPrevScreenKeyCode = keyCode; snapPrevScreenModifiers = modifiers; snapPrevScreenDisplay = display
         case .nextScreen: snapNextScreenKeyCode = keyCode; snapNextScreenModifiers = modifiers; snapNextScreenDisplay = display
@@ -340,6 +368,22 @@ final class AppSettings: ObservableObject {
         snapRightThirdModifiers = defaults.object(forKey: Key.snapRightThirdModifiers.rawValue) as? Int ?? 917504
         snapRightThirdDisplay = defaults.string(forKey: Key.snapRightThirdDisplay.rawValue) ?? "⌃⌥⇧→"
 
+        // 4분할: 키보드 위 U I / J K 가 이루는 2×2 자리가 곧 화면의 네 칸이다(Rectangle 관례).
+        // 방향키 두 개를 동시에 누르는 조합은 일부 키보드에서 롤오버가 안 돼 글자키를 쓴다.
+        // 키코드는 물리 자리라 한글 입력 상태나 자판 배열과 무관하게 같은 자리에서 동작한다.
+        snapTopLeftKeyCode = defaults.object(forKey: Key.snapTopLeftKeyCode.rawValue) as? Int ?? 32         // U
+        snapTopLeftModifiers = defaults.object(forKey: Key.snapTopLeftModifiers.rawValue) as? Int ?? 786432
+        snapTopLeftDisplay = defaults.string(forKey: Key.snapTopLeftDisplay.rawValue) ?? "⌃⌥U"
+        snapTopRightKeyCode = defaults.object(forKey: Key.snapTopRightKeyCode.rawValue) as? Int ?? 34        // I
+        snapTopRightModifiers = defaults.object(forKey: Key.snapTopRightModifiers.rawValue) as? Int ?? 786432
+        snapTopRightDisplay = defaults.string(forKey: Key.snapTopRightDisplay.rawValue) ?? "⌃⌥I"
+        snapBottomLeftKeyCode = defaults.object(forKey: Key.snapBottomLeftKeyCode.rawValue) as? Int ?? 38    // J
+        snapBottomLeftModifiers = defaults.object(forKey: Key.snapBottomLeftModifiers.rawValue) as? Int ?? 786432
+        snapBottomLeftDisplay = defaults.string(forKey: Key.snapBottomLeftDisplay.rawValue) ?? "⌃⌥J"
+        snapBottomRightKeyCode = defaults.object(forKey: Key.snapBottomRightKeyCode.rawValue) as? Int ?? 40  // K
+        snapBottomRightModifiers = defaults.object(forKey: Key.snapBottomRightModifiers.rawValue) as? Int ?? 786432
+        snapBottomRightDisplay = defaults.string(forKey: Key.snapBottomRightDisplay.rawValue) ?? "⌃⌥K"
+
         snapMaxKeyCode = defaults.object(forKey: Key.snapMaxKeyCode.rawValue) as? Int ?? 36       // ↩
         snapMaxModifiers = defaults.object(forKey: Key.snapMaxModifiers.rawValue) as? Int ?? 786432
         snapMaxDisplay = defaults.string(forKey: Key.snapMaxDisplay.rawValue) ?? "⌃⌥↩"
@@ -400,6 +444,10 @@ final class AppSettings: ObservableObject {
         case snapRightKeyCode, snapRightModifiers, snapRightDisplay
         case snapLeftThirdKeyCode, snapLeftThirdModifiers, snapLeftThirdDisplay
         case snapRightThirdKeyCode, snapRightThirdModifiers, snapRightThirdDisplay
+        case snapTopLeftKeyCode, snapTopLeftModifiers, snapTopLeftDisplay
+        case snapTopRightKeyCode, snapTopRightModifiers, snapTopRightDisplay
+        case snapBottomLeftKeyCode, snapBottomLeftModifiers, snapBottomLeftDisplay
+        case snapBottomRightKeyCode, snapBottomRightModifiers, snapBottomRightDisplay
         case snapMaxKeyCode, snapMaxModifiers, snapMaxDisplay
         case snapPrevScreenKeyCode, snapPrevScreenModifiers, snapPrevScreenDisplay
         case snapNextScreenKeyCode, snapNextScreenModifiers, snapNextScreenDisplay

@@ -56,6 +56,17 @@ struct WindowSnapSettingsView: View {
             }
             .disabled(!settings.windowSnapEnabled)
 
+            Section("4분할") {
+                shortcutRow("좌상 1/4", .topLeft)
+                shortcutRow("우상 1/4", .topRight)
+                shortcutRow("좌하 1/4", .bottomLeft)
+                shortcutRow("우하 1/4", .bottomRight)
+                Text("키보드의 U I / J K 자리가 화면의 네 칸과 같습니다. 화면은 넘지 않습니다.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .disabled(!settings.windowSnapEnabled)
+
             Section("화면 간 이동") {
                 shortcutRow("이전 화면으로", .prevScreen)
                 shortcutRow("다음 화면으로", .nextScreen)

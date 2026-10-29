@@ -231,6 +231,67 @@ final class WindowSnapperTests: XCTestCase {
         XCTAssertEqual(ax.origin.y, 982 - (982 + 1890))   // = -1890
     }
 
+    // MARK: 4분할 키
+
+    /// Cocoa 좌표라 위쪽 칸이 Y 큰 쪽이다(visibleFrame 이 (0,0) 에서 시작하지 않는 화면 포함).
+    func testQuarterFrames() {
+        // P.visibleFrame = (0, 0, 1512, 949)
+        let some = NSRect(x: 300, y: 200, width: 700, height: 500)
+        func q(_ p: SnapPosition, _ s: SnapScreen) -> NSRect {
+            WindowSnapper.resolveTarget(p, windowFrame: some, currentScreen: s, screens: screens)
+        }
+        XCTAssertEqual(q(.topLeft, P), NSRect(x: 0, y: 474.5, width: 756, height: 474.5))
+        XCTAssertEqual(q(.topRight, P), NSRect(x: 756, y: 474.5, width: 756, height: 474.5))
+        XCTAssertEqual(q(.bottomLeft, P), NSRect(x: 0, y: 0, width: 756, height: 474.5))
+        XCTAssertEqual(q(.bottomRight, P), NSRect(x: 756, y: 0, width: 756, height: 474.5))
+        XCTAssertEqual(q(.topRight, D), NSRect(x: 3395, y: 2176, width: 960, height: 540))
+    }
+
+    /// 네 칸은 틈도 겹침도 없이 화면을 정확히 채운다.
+    func testQuartersTileScreenExactly() {
+        for screen in screens {
+            let vf = screen.visibleFrame
+            let tl = WindowSnapper.quarter(.topLeft, in: vf)
+            let tr = WindowSnapper.quarter(.topRight, in: vf)
+            let bl = WindowSnapper.quarter(.bottomLeft, in: vf)
+            let br = WindowSnapper.quarter(.bottomRight, in: vf)
+            XCTAssertEqual(tl.maxX, tr.minX, accuracy: 0.0001)
+            XCTAssertEqual(bl.maxX, br.minX, accuracy: 0.0001)
+            XCTAssertEqual(bl.maxY, tl.minY, accuracy: 0.0001)
+            XCTAssertEqual(br.maxY, tr.minY, accuracy: 0.0001)
+            XCTAssertEqual(tl.union(br), vf)
+        }
+    }
+
+    /// 이미 그 칸이어도 같은 칸에 머문다 — 토글도 화면 넘김도 없다.
+    func testQuarterIsIdempotentAndNeverCrosses() {
+        let here = WindowSnapper.quarter(.topRight, in: U.visibleFrame)
+        XCTAssertEqual(WindowSnapper.resolveTarget(.topRight, windowFrame: here, currentScreen: U, screens: screens), here)
+    }
+
+    /// 4분할 칸은 1/2·1/3 칸으로 오인되지 않는다(높이가 화면의 절반이라).
+    func testQuarterIsNotMistakenForSlot() {
+        for screen in screens {
+            let vf = screen.visibleFrame
+            for p in [SnapPosition.topLeft, .topRight, .bottomLeft, .bottomRight] {
+                XCTAssertNil(WindowSnapper.currentSlot(of: WindowSnapper.quarter(p, in: vf), in: vf))
+            }
+        }
+    }
+
+    /// 화면 간 이동은 4분할 칸을 이웃 화면의 같은 칸으로 옮긴다.
+    func testJumpCarriesQuarterToSameQuarter() {
+        let ordered = WindowSnapper.orderedScreens(screens)
+        for (a, b) in zip(ordered, ordered.dropFirst()) {
+            for p in [SnapPosition.topLeft, .topRight, .bottomLeft, .bottomRight] {
+                let from = WindowSnapper.quarter(p, in: a.visibleFrame)
+                let t = WindowSnapper.resolveTarget(.nextScreen, windowFrame: from, currentScreen: a, screens: screens)
+                let want = WindowSnapper.quarter(p, in: b.visibleFrame)
+                XCTAssertTrue(WindowSnapper.occupies(t, want, tolerance: 0.5), "\(p): \(t) ≠ \(want)")
+            }
+        }
+    }
+
     // MARK: 허용 오차
 
     func testOccupiesTolerance() {

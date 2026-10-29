@@ -9,6 +9,10 @@ enum SnapPosition: String, CaseIterable {
     case rightHalf    // 우 1/2 — 이미 우 1/2면 오른쪽 화면의 좌 1/2
     case leftThird    // 좌 1/3 ↔ 좌 2/3 (같은 화면 안에서만)
     case rightThird   // 우 1/3 ↔ 우 2/3 (같은 화면 안에서만)
+    case topLeft      // 좌상 1/4 (같은 화면 안에서만)
+    case topRight     // 우상 1/4
+    case bottomLeft   // 좌하 1/4
+    case bottomRight  // 우하 1/4
     case maximize
     case prevScreen   // 비율을 유지한 채 바로 이전 화면
     case nextScreen   // 비율을 유지한 채 바로 다음 화면
@@ -36,6 +40,7 @@ struct SnapScreen: Equatable {
 /// 키마다 하는 일이 하나씩이다:
 /// - `leftHalf`/`rightHalf` — 좌·우 절반. 이미 그 절반이면 **그 방향의 화면**으로 넘어간다(sideScreen).
 /// - `leftThird`/`rightThird` — 1/3 ↔ 2/3 토글. 화면을 넘지 않는다.
+/// - `topLeft`…`bottomRight` — 4분할 한 칸. 토글도 화면 넘김도 없이 늘 같은 자리다.
 /// - `prevScreen`/`nextScreen` — 비율을 유지한 채 **모든 화면을 왼쪽 끝 순으로** 오간다(orderedScreens).
 ///
 /// 화면을 고르는 규칙이 둘로 갈리는 이유: 절반 키는 미는 방향과 도착지가 맞아야 하므로 가로로
@@ -111,6 +116,8 @@ enum WindowSnapper {
             return third(narrow: .leftThird, wide: .leftTwoThirds, windowFrame: windowFrame, currentScreen: currentScreen)
         case .rightThird:
             return third(narrow: .rightThird, wide: .rightTwoThirds, windowFrame: windowFrame, currentScreen: currentScreen)
+        case .topLeft, .topRight, .bottomLeft, .bottomRight:
+            return quarter(position, in: currentScreen.visibleFrame)
         case .prevScreen:
             return jump(-1, windowFrame: windowFrame, currentScreen: currentScreen, screens: screens)
         case .nextScreen:
@@ -143,6 +150,26 @@ enum WindowSnapper {
             return frame(for: wide, in: vf)
         }
         return frame(for: narrow, in: vf)
+    }
+
+    /// 4분할 한 칸(Cocoa 좌표라 위쪽이 Y 큰 쪽). 1/2 칸과 마찬가지로 경계를 먼저 구해
+    /// 네 칸이 틈 없이 맞닿게 한다. 4분할이 아닌 동작에는 화면 전체를 돌려준다.
+    ///
+    /// 화면 간 이동 키는 이 칸을 따로 알 필요가 없다 — 칸에 없는 창으로 보고 비례 변환하면
+    /// 정확히 이웃 화면의 같은 4분할 칸이 된다.
+    static func quarter(_ position: SnapPosition, in vf: NSRect) -> NSRect {
+        let left: Bool
+        let top: Bool
+        switch position {
+        case .topLeft:     (left, top) = (true, true)
+        case .topRight:    (left, top) = (false, true)
+        case .bottomLeft:  (left, top) = (true, false)
+        case .bottomRight: (left, top) = (false, false)
+        default:           return vf
+        }
+        let (x0, x1) = left ? (vf.minX, vf.midX) : (vf.midX, vf.maxX)
+        let (y0, y1) = top ? (vf.midY, vf.maxY) : (vf.minY, vf.midY)
+        return NSRect(x: x0, y: y0, width: x1 - x0, height: y1 - y0)
     }
 
     /// 띠를 거치지 않고 곧장 이웃 화면으로. 칸에 놓인 창은 그 칸을 그대로 가져가고,
