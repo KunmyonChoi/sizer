@@ -31,6 +31,10 @@ final class WatchCoordinator: ObservableObject {
     private let snapTopRightHotKey = GlobalHotKey()   // 창 스냅: 우상 1/4
     private let snapBottomLeftHotKey = GlobalHotKey() // 창 스냅: 좌하 1/4
     private let snapBottomRightHotKey = GlobalHotKey() // 창 스냅: 우하 1/4
+    private let snapTopLeftPadHotKey = GlobalHotKey()     // 창 스냅: 좌상 1/4 (숫자패드 7)
+    private let snapTopRightPadHotKey = GlobalHotKey()    // 창 스냅: 우상 1/4 (숫자패드 9)
+    private let snapBottomLeftPadHotKey = GlobalHotKey()  // 창 스냅: 좌하 1/4 (숫자패드 1)
+    private let snapBottomRightPadHotKey = GlobalHotKey() // 창 스냅: 우하 1/4 (숫자패드 3)
     private let snapMaxHotKey = GlobalHotKey()        // 창 스냅: 최대화
     private let snapPrevScreenHotKey = GlobalHotKey() // 창 스냅: 이전 화면으로 즉시 이동
     private let snapNextScreenHotKey = GlobalHotKey() // 창 스냅: 다음 화면으로 즉시 이동
@@ -88,6 +92,10 @@ final class WatchCoordinator: ObservableObject {
         snapTopRightHotKey.onFire = { WindowSnapper.snap(.topRight) }
         snapBottomLeftHotKey.onFire = { WindowSnapper.snap(.bottomLeft) }
         snapBottomRightHotKey.onFire = { WindowSnapper.snap(.bottomRight) }
+        snapTopLeftPadHotKey.onFire = { WindowSnapper.snap(.topLeft) }
+        snapTopRightPadHotKey.onFire = { WindowSnapper.snap(.topRight) }
+        snapBottomLeftPadHotKey.onFire = { WindowSnapper.snap(.bottomLeft) }
+        snapBottomRightPadHotKey.onFire = { WindowSnapper.snap(.bottomRight) }
         snapMaxHotKey.onFire = { WindowSnapper.snap(.maximize) }
         snapPrevScreenHotKey.onFire = { WindowSnapper.snap(.prevScreen) }
         snapNextScreenHotKey.onFire = { WindowSnapper.snap(.nextScreen) }
@@ -120,6 +128,10 @@ final class WatchCoordinator: ObservableObject {
             snapTopRightHotKey.unregister()
             snapBottomLeftHotKey.unregister()
             snapBottomRightHotKey.unregister()
+            snapTopLeftPadHotKey.unregister()
+            snapTopRightPadHotKey.unregister()
+            snapBottomLeftPadHotKey.unregister()
+            snapBottomRightPadHotKey.unregister()
             snapMaxHotKey.unregister()
             snapPrevScreenHotKey.unregister()
             snapNextScreenHotKey.unregister()
@@ -133,6 +145,10 @@ final class WatchCoordinator: ObservableObject {
         snapTopRightHotKey.update(keyCode: settings.snapTopRightKeyCode, cocoaModifiers: settings.snapTopRightModifiers)
         snapBottomLeftHotKey.update(keyCode: settings.snapBottomLeftKeyCode, cocoaModifiers: settings.snapBottomLeftModifiers)
         snapBottomRightHotKey.update(keyCode: settings.snapBottomRightKeyCode, cocoaModifiers: settings.snapBottomRightModifiers)
+        snapTopLeftPadHotKey.update(keyCode: settings.snapTopLeftPadKeyCode, cocoaModifiers: settings.snapTopLeftPadModifiers)
+        snapTopRightPadHotKey.update(keyCode: settings.snapTopRightPadKeyCode, cocoaModifiers: settings.snapTopRightPadModifiers)
+        snapBottomLeftPadHotKey.update(keyCode: settings.snapBottomLeftPadKeyCode, cocoaModifiers: settings.snapBottomLeftPadModifiers)
+        snapBottomRightPadHotKey.update(keyCode: settings.snapBottomRightPadKeyCode, cocoaModifiers: settings.snapBottomRightPadModifiers)
         snapMaxHotKey.update(keyCode: settings.snapMaxKeyCode, cocoaModifiers: settings.snapMaxModifiers)
         snapPrevScreenHotKey.update(keyCode: settings.snapPrevScreenKeyCode, cocoaModifiers: settings.snapPrevScreenModifiers)
         snapNextScreenHotKey.update(keyCode: settings.snapNextScreenKeyCode, cocoaModifiers: settings.snapNextScreenModifiers)
@@ -283,6 +299,14 @@ final class WatchCoordinator: ObservableObject {
             settings.$snapBottomLeftModifiers.map { _ in () }.eraseToAnyPublisher(),
             settings.$snapBottomRightKeyCode.map { _ in () }.eraseToAnyPublisher(),
             settings.$snapBottomRightModifiers.map { _ in () }.eraseToAnyPublisher(),
+            settings.$snapTopLeftPadKeyCode.map { _ in () }.eraseToAnyPublisher(),
+            settings.$snapTopLeftPadModifiers.map { _ in () }.eraseToAnyPublisher(),
+            settings.$snapTopRightPadKeyCode.map { _ in () }.eraseToAnyPublisher(),
+            settings.$snapTopRightPadModifiers.map { _ in () }.eraseToAnyPublisher(),
+            settings.$snapBottomLeftPadKeyCode.map { _ in () }.eraseToAnyPublisher(),
+            settings.$snapBottomLeftPadModifiers.map { _ in () }.eraseToAnyPublisher(),
+            settings.$snapBottomRightPadKeyCode.map { _ in () }.eraseToAnyPublisher(),
+            settings.$snapBottomRightPadModifiers.map { _ in () }.eraseToAnyPublisher(),
             settings.$snapMaxKeyCode.map { _ in () }.eraseToAnyPublisher(),
             settings.$snapMaxModifiers.map { _ in () }.eraseToAnyPublisher(),
             settings.$snapPrevScreenKeyCode.map { _ in () }.eraseToAnyPublisher(),

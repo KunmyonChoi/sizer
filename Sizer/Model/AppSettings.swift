@@ -60,6 +60,18 @@ final class AppSettings: ObservableObject {
     @Published var snapBottomRightKeyCode: Int { didSet { save(snapBottomRightKeyCode, .snapBottomRightKeyCode) } }
     @Published var snapBottomRightModifiers: Int { didSet { save(snapBottomRightModifiers, .snapBottomRightModifiers) } }
     @Published var snapBottomRightDisplay: String { didSet { save(snapBottomRightDisplay, .snapBottomRightDisplay) } }
+    @Published var snapTopLeftPadKeyCode: Int { didSet { save(snapTopLeftPadKeyCode, .snapTopLeftPadKeyCode) } }
+    @Published var snapTopLeftPadModifiers: Int { didSet { save(snapTopLeftPadModifiers, .snapTopLeftPadModifiers) } }
+    @Published var snapTopLeftPadDisplay: String { didSet { save(snapTopLeftPadDisplay, .snapTopLeftPadDisplay) } }
+    @Published var snapTopRightPadKeyCode: Int { didSet { save(snapTopRightPadKeyCode, .snapTopRightPadKeyCode) } }
+    @Published var snapTopRightPadModifiers: Int { didSet { save(snapTopRightPadModifiers, .snapTopRightPadModifiers) } }
+    @Published var snapTopRightPadDisplay: String { didSet { save(snapTopRightPadDisplay, .snapTopRightPadDisplay) } }
+    @Published var snapBottomLeftPadKeyCode: Int { didSet { save(snapBottomLeftPadKeyCode, .snapBottomLeftPadKeyCode) } }
+    @Published var snapBottomLeftPadModifiers: Int { didSet { save(snapBottomLeftPadModifiers, .snapBottomLeftPadModifiers) } }
+    @Published var snapBottomLeftPadDisplay: String { didSet { save(snapBottomLeftPadDisplay, .snapBottomLeftPadDisplay) } }
+    @Published var snapBottomRightPadKeyCode: Int { didSet { save(snapBottomRightPadKeyCode, .snapBottomRightPadKeyCode) } }
+    @Published var snapBottomRightPadModifiers: Int { didSet { save(snapBottomRightPadModifiers, .snapBottomRightPadModifiers) } }
+    @Published var snapBottomRightPadDisplay: String { didSet { save(snapBottomRightPadDisplay, .snapBottomRightPadDisplay) } }
     @Published var snapMaxKeyCode: Int { didSet { save(snapMaxKeyCode, .snapMaxKeyCode) } }
     @Published var snapMaxModifiers: Int { didSet { save(snapMaxModifiers, .snapMaxModifiers) } }
     @Published var snapMaxDisplay: String { didSet { save(snapMaxDisplay, .snapMaxDisplay) } }
@@ -219,6 +231,56 @@ final class AppSettings: ObservableObject {
 
     func clearSnapShortcut(_ a: SnapPosition) {
         setSnapShortcut(a, keyCode: 0, modifiers: 0, display: "")
+    }
+
+    // 4분할의 두 번째 바인딩(숫자패드). 4분할이 아닌 동작에는 없다.
+
+    func snapPadKeyCode(_ a: SnapPosition) -> Int {
+        switch a {
+        case .topLeft:     return snapTopLeftPadKeyCode
+        case .topRight:    return snapTopRightPadKeyCode
+        case .bottomLeft:  return snapBottomLeftPadKeyCode
+        case .bottomRight: return snapBottomRightPadKeyCode
+        default:     return 0
+        }
+    }
+
+    func snapPadModifiers(_ a: SnapPosition) -> Int {
+        switch a {
+        case .topLeft:     return snapTopLeftPadModifiers
+        case .topRight:    return snapTopRightPadModifiers
+        case .bottomLeft:  return snapBottomLeftPadModifiers
+        case .bottomRight: return snapBottomRightPadModifiers
+        default:     return 0
+        }
+    }
+
+    func snapPadDisplay(_ a: SnapPosition) -> String {
+        switch a {
+        case .topLeft:     return snapTopLeftPadDisplay
+        case .topRight:    return snapTopRightPadDisplay
+        case .bottomLeft:  return snapBottomLeftPadDisplay
+        case .bottomRight: return snapBottomRightPadDisplay
+        default:     return ""
+        }
+    }
+
+    func snapPadHasShortcut(_ a: SnapPosition) -> Bool {
+        snapPadKeyCode(a) != 0 || snapPadModifiers(a) != 0
+    }
+
+    func setSnapPadShortcut(_ a: SnapPosition, keyCode: Int, modifiers: Int, display: String) {
+        switch a {
+        case .topLeft:     snapTopLeftPadKeyCode = keyCode; snapTopLeftPadModifiers = modifiers; snapTopLeftPadDisplay = display
+        case .topRight:    snapTopRightPadKeyCode = keyCode; snapTopRightPadModifiers = modifiers; snapTopRightPadDisplay = display
+        case .bottomLeft:  snapBottomLeftPadKeyCode = keyCode; snapBottomLeftPadModifiers = modifiers; snapBottomLeftPadDisplay = display
+        case .bottomRight: snapBottomRightPadKeyCode = keyCode; snapBottomRightPadModifiers = modifiers; snapBottomRightPadDisplay = display
+        default:           break
+        }
+    }
+
+    func clearSnapPadShortcut(_ a: SnapPosition) {
+        setSnapPadShortcut(a, keyCode: 0, modifiers: 0, display: "")
     }
 
     // MARK: 모니터 꺼짐 방지 단축키 접근자
@@ -384,6 +446,21 @@ final class AppSettings: ObservableObject {
         snapBottomRightModifiers = defaults.object(forKey: Key.snapBottomRightModifiers.rawValue) as? Int ?? 786432
         snapBottomRightDisplay = defaults.string(forKey: Key.snapBottomRightDisplay.rawValue) ?? "⌃⌥K"
 
+        // 4분할 두 번째 바인딩: 숫자패드 7 9 / 1 3 도 화면의 네 모서리와 같은 자리다.
+        // 옛 Ubuntu(Compiz Grid)의 Ctrl+Alt+숫자패드 배치와 같아 Linux 사용자에게도 익숙하다.
+        snapTopLeftPadKeyCode = defaults.object(forKey: Key.snapTopLeftPadKeyCode.rawValue) as? Int ?? 89      // 숫자패드 7
+        snapTopLeftPadModifiers = defaults.object(forKey: Key.snapTopLeftPadModifiers.rawValue) as? Int ?? 786432
+        snapTopLeftPadDisplay = defaults.string(forKey: Key.snapTopLeftPadDisplay.rawValue) ?? "⌃⌥Num7"
+        snapTopRightPadKeyCode = defaults.object(forKey: Key.snapTopRightPadKeyCode.rawValue) as? Int ?? 92     // 숫자패드 9
+        snapTopRightPadModifiers = defaults.object(forKey: Key.snapTopRightPadModifiers.rawValue) as? Int ?? 786432
+        snapTopRightPadDisplay = defaults.string(forKey: Key.snapTopRightPadDisplay.rawValue) ?? "⌃⌥Num9"
+        snapBottomLeftPadKeyCode = defaults.object(forKey: Key.snapBottomLeftPadKeyCode.rawValue) as? Int ?? 83   // 숫자패드 1
+        snapBottomLeftPadModifiers = defaults.object(forKey: Key.snapBottomLeftPadModifiers.rawValue) as? Int ?? 786432
+        snapBottomLeftPadDisplay = defaults.string(forKey: Key.snapBottomLeftPadDisplay.rawValue) ?? "⌃⌥Num1"
+        snapBottomRightPadKeyCode = defaults.object(forKey: Key.snapBottomRightPadKeyCode.rawValue) as? Int ?? 85  // 숫자패드 3
+        snapBottomRightPadModifiers = defaults.object(forKey: Key.snapBottomRightPadModifiers.rawValue) as? Int ?? 786432
+        snapBottomRightPadDisplay = defaults.string(forKey: Key.snapBottomRightPadDisplay.rawValue) ?? "⌃⌥Num3"
+
         snapMaxKeyCode = defaults.object(forKey: Key.snapMaxKeyCode.rawValue) as? Int ?? 36       // ↩
         snapMaxModifiers = defaults.object(forKey: Key.snapMaxModifiers.rawValue) as? Int ?? 786432
         snapMaxDisplay = defaults.string(forKey: Key.snapMaxDisplay.rawValue) ?? "⌃⌥↩"
@@ -448,6 +525,10 @@ final class AppSettings: ObservableObject {
         case snapTopRightKeyCode, snapTopRightModifiers, snapTopRightDisplay
         case snapBottomLeftKeyCode, snapBottomLeftModifiers, snapBottomLeftDisplay
         case snapBottomRightKeyCode, snapBottomRightModifiers, snapBottomRightDisplay
+        case snapTopLeftPadKeyCode, snapTopLeftPadModifiers, snapTopLeftPadDisplay
+        case snapTopRightPadKeyCode, snapTopRightPadModifiers, snapTopRightPadDisplay
+        case snapBottomLeftPadKeyCode, snapBottomLeftPadModifiers, snapBottomLeftPadDisplay
+        case snapBottomRightPadKeyCode, snapBottomRightPadModifiers, snapBottomRightPadDisplay
         case snapMaxKeyCode, snapMaxModifiers, snapMaxDisplay
         case snapPrevScreenKeyCode, snapPrevScreenModifiers, snapPrevScreenDisplay
         case snapNextScreenKeyCode, snapNextScreenModifiers, snapNextScreenDisplay

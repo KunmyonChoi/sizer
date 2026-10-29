@@ -92,6 +92,8 @@ final class GlobalHotKey {
         case 51:  return "⌫"
         case 117: return "⌦"
         case 53:  return "⎋"
+        // 숫자패드 숫자. 문자만으로는 윗줄 숫자와 구분되지 않는다.
+        case 82, 83, 84, 85, 86, 87, 88, 89, 91, 92: return "Num" + characters
         default:  return characters.uppercased()
         }
     }

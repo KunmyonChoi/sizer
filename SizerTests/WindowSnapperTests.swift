@@ -292,6 +292,14 @@ final class WindowSnapperTests: XCTestCase {
         }
     }
 
+    /// 숫자패드 숫자는 윗줄 숫자와 구분되는 라벨을 얻는다.
+    @MainActor
+    func testKeypadDigitsGetDistinctLabel() {
+        XCTAssertEqual(GlobalHotKey.keyLabel(keyCode: 89, characters: "7"), "Num7")
+        XCTAssertEqual(GlobalHotKey.keyLabel(keyCode: 83, characters: "1"), "Num1")
+        XCTAssertEqual(GlobalHotKey.keyLabel(keyCode: 26, characters: "7"), "7")   // 윗줄 7
+    }
+
     // MARK: 허용 오차
 
     func testOccupiesTolerance() {

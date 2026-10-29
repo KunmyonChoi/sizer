@@ -57,11 +57,11 @@ struct WindowSnapSettingsView: View {
             .disabled(!settings.windowSnapEnabled)
 
             Section("4분할") {
-                shortcutRow("좌상 1/4", .topLeft)
-                shortcutRow("우상 1/4", .topRight)
-                shortcutRow("좌하 1/4", .bottomLeft)
-                shortcutRow("우하 1/4", .bottomRight)
-                Text("키보드의 U I / J K 자리가 화면의 네 칸과 같습니다. 화면은 넘지 않습니다.")
+                quarterRow("좌상 1/4", .topLeft)
+                quarterRow("우상 1/4", .topRight)
+                quarterRow("좌하 1/4", .bottomLeft)
+                quarterRow("우하 1/4", .bottomRight)
+                Text("키보드의 U I / J K, 숫자패드의 7 9 / 1 3 자리가 화면의 네 칸과 같습니다. 두 키 모두 동작하며, 화면은 넘지 않습니다.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -80,6 +80,26 @@ struct WindowSnapSettingsView: View {
         .onReceive(refresh) { _ in
             let now = WindowSnapper.isTrusted
             if now != trusted { trusted = now }
+        }
+    }
+
+    /// 4분할은 글자키와 숫자패드 두 바인딩을 한 줄에 둔다.
+    private func quarterRow(_ title: String, _ action: SnapPosition) -> some View {
+        LabeledContent(title) {
+            VStack(alignment: .trailing, spacing: 4) {
+                ShortcutRecorder(
+                    display: settings.snapDisplay(action),
+                    hasShortcut: settings.snapHasShortcut(action),
+                    onCapture: { settings.setSnapShortcut(action, keyCode: $0, modifiers: $1, display: $2) },
+                    onClear: { settings.clearSnapShortcut(action) }
+                )
+                ShortcutRecorder(
+                    display: settings.snapPadDisplay(action),
+                    hasShortcut: settings.snapPadHasShortcut(action),
+                    onCapture: { settings.setSnapPadShortcut(action, keyCode: $0, modifiers: $1, display: $2) },
+                    onClear: { settings.clearSnapPadShortcut(action) }
+                )
+            }
         }
     }
 
